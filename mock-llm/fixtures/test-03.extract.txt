@@ -1,0 +1,1 @@
+{"order_ref": "RW-2026-0388", "product_hint": "Werkzeugkoffer Pro", "quantity_affected": 1, "problem_type": "falsch_geliefert", "customer_wants": "ersatz", "urgency": "normal", "language": "de", "formality_used": "Sie", "summary": "Statt des Werkzeugkoffers Pro wurde ein kleiner Kunststoffkoffer geliefert."}

@@ -1,0 +1,1085 @@
+{
+ "id": "rwReklamation001",
+ "name": "Reklamation: Assistent",
+ "nodes": [
+  {
+   "id": "b8aacc2b-64ee-5460-a7c4-aa2910dd6482",
+   "name": "Reklamation eingegangen",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "reklamation",
+    "responseMode": "onReceived",
+    "options": {}
+   },
+   "webhookId": "reklamation"
+  },
+  {
+   "id": "cb511de4-079d-58a9-b04c-f434c2da1f6e",
+   "name": "Einstellungen lesen",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    220,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "e2f20589-f121-587c-9e0e-58b72b7cf5a3",
+   "name": "Einstellungen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    440,
+    300
+   ],
+   "parameters": {
+    "operation": "fromJson",
+    "options": {}
+   }
+  },
+  {
+   "id": "150b0d40-4646-5bac-9daa-b847311f4586",
+   "name": "Stilregeln datei",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    660,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/prompts/EMAIL_STYLE.md",
+    "options": {}
+   }
+  },
+  {
+   "id": "7522297c-9c0b-5bdb-86a4-014ab05f521e",
+   "name": "Stilregeln lesen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    880,
+    300
+   ],
+   "parameters": {
+    "operation": "text",
+    "options": {}
+   }
+  },
+  {
+   "id": "bc9324c9-12a3-5494-99bc-19eca111ff46",
+   "name": "Kontext",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Kontext\": the complaint mail, the settings and the style guide, and the prompt that asks the AI to read the mail.\nconst body = $('Reklamation eingegangen').first().json.body || {};\nconst settings = $('Einstellungen').first().json.data || {};\nconst style = $('Stilregeln lesen').first().json.data || '';\nconst mail = {\n  message_id: String(body.message_id || ('web-' + Date.now())),\n  from_email: String(body.from_email || '').toLowerCase().trim(),\n  from_name: String(body.from_name || ''),\n  subject: String(body.subject || ''),\n  text: String(body.text || '').slice(0, 6000),\n  received: new Date().toISOString(),\n};\nconst id = mail.message_id.replace(/[<>]/g, '');\nconst extractPrompt = [\n  'TASK: extract',\n  'Du liest Reklamations-E-Mails eines Werkzeug-Großhändlers und gibst NUR ein JSON-Objekt zurück, ohne Text davor oder danach.',\n  'Felder:',\n  '  order_ref: Auftrags- oder Bestellnummer aus der E-Mail (z. B. \"RW-2026-0412\" oder \"S00002\"), sonst null',\n  '  product_hint: Produktname oder Artikelnummer, die der Kunde nennt, sonst null',\n  '  quantity_affected: betroffene Stückzahl als Zahl, sonst 1',\n  '  problem_type: \"defekt\" | \"beschaedigt\" | \"falsch_geliefert\" | \"fehlt\" | \"sonstiges\"',\n  '  customer_wants: \"ersatz\" | \"gutschrift\" | \"reparatur\" | \"unklar\"',\n  '  urgency: \"normal\" | \"hoch\"',\n  '  language: \"de\" | \"en\"',\n  '  formality_used: \"Sie\" | \"du\"',\n  '  summary: ein Satz auf Deutsch, worum es geht',\n  'Erfinde nichts. Was nicht in der E-Mail steht, ist null oder \"unklar\".',\n].join('\\n');\nconst user = `MESSAGE-ID: ${id}\\nVon: ${mail.from_name} <${mail.from_email}>\\nBetreff: ${mail.subject}\\n\\n${mail.text}`;\nreturn [{ json: { id, mail, settings, style, extractPrompt: { system: extractPrompt, user } } }];"
+   }
+  },
+  {
+   "id": "aa1cfbab-e84b-54c5-af36-6791cf164479",
+   "name": "Odoo Login",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1320,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"common\", method: \"login\", args: [$env.ODOO_DB, $env.ODOO_USER, $env.ODOO_PASSWORD]} }) }}"
+   }
+  },
+  {
+   "id": "dc7c2fa9-7543-54f4-97a8-130534d9f803",
+   "name": "KI aus Odoo lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1430,
+    480
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"ir.config_parameter\", \"search_read\", [[[\"key\", \"in\", $(\"Kontext\").first().json.settings.odoo_ai_params || []]]], {fields: [\"key\", \"value\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "ad4c81f9-7468-54a7-9513-2b230ec45a7e",
+   "name": "Lese-Anfrage",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1540,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// One function builds the HTTP request for whichever AI the company chose in the settings.\n// Keys come from the environment (.env.local) or, for \"odoo\", from the AI keys already stored in Odoo.\n// Every provider gets the same prompts; only the request format differs (OpenAI, Anthropic or Azure).\nconst PROVIDERS = {\n  mock:      { label: 'Testmodell (offline)', url: 'http://mock-llm:8099/v1', fmt: 'openai', local: true },\n  ollama:    { label: 'Ollama (lokal)', url: 'http://host.docker.internal:11434/v1', fmt: 'openai', local: true, model: 'qwen2.5:7b' },\n  lmstudio:  { label: 'LM Studio (lokal)', url: 'http://host.docker.internal:1234/v1', fmt: 'openai', local: true },\n  openai:    { label: 'OpenAI', url: 'https://api.openai.com/v1', fmt: 'openai', env: 'OPENAI_API_KEY', model: 'gpt-4o-mini' },\n  anthropic: { label: 'Anthropic Claude', url: 'https://api.anthropic.com/v1', fmt: 'anthropic', env: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5' },\n  gemini:    { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', fmt: 'openai', env: 'GEMINI_API_KEY',\n               model: 'gemini-2.5-flash' },\n  mistral:   { label: 'Mistral', url: 'https://api.mistral.ai/v1', fmt: 'openai', env: 'MISTRAL_API_KEY', model: 'mistral-small-latest' },\n  azure:     { label: 'Azure OpenAI', url: '', fmt: 'azure', env: 'AZURE_OPENAI_API_KEY' },\n  custom:    { label: 'Eigener Endpunkt', url: '', fmt: 'openai', env: 'LLM_API_KEY' },\n};\n\n// \"Wie in Odoo eingerichtet\": find an AI key among the Odoo system parameters listed in the settings\nfunction odooAiKey(s) {\n  const rows = ($('KI aus Odoo lesen').first().json.result || []).filter(r => r.value);\n  const prefer = s.odoo_ai_prefer || 'openai';\n  const kind = r => (/openai/i.test(r.key) ? 'openai' : /google|gemini/i.test(r.key) ? 'gemini' : /anthropic|claude/i.test(r.key) ? 'anthropic' : null);\n  const found = rows.map(r => ({ provider: kind(r), key: r.value, param: r.key })).filter(r => r.provider);\n  return found.find(r => r.provider === prefer) || found[0] || null;\n}\n\nfunction llmRequest(s, system, user, temperature) {\n  let p = s.llm_provider || 'mock', key = null, from = null;\n  if (p === 'odoo') {\n    const hit = odooAiKey(s);\n    if (!hit)\n      throw new Error(\n        'In Odoo ist kein KI-Schlüssel hinterlegt (gesucht: ' + (s.odoo_ai_params || []).join(', ') + '). ' +\n          'Bitte in den Einstellungen einen anderen KI-Anbieter wählen.',\n      );\n    p = hit.provider;\n    key = hit.key;\n    from = 'Odoo (' + hit.param + ')';\n  }\n  const P = PROVIDERS[p];\n  if (!P) throw new Error('Unbekannter KI-Anbieter: ' + p);\n  const base = String(s.llm_url || P.url).replace(/\\/+$/, '');\n  if (!base) throw new Error('Für ' + P.label + ' fehlt die Adresse (URL) in den Einstellungen.');\n  key = key || (P.env ? $env[P.env] || $env.LLM_API_KEY : null) || null;\n  if (P.env && !key) throw new Error('Für ' + P.label + ' fehlt der API-Schlüssel ' + P.env + ' in .env.local.');\n  const model = (from ? s.odoo_ai_model || P.model : s.llm_model) || P.model || 'local-model';\n  let url, body;\n  const headers = { 'Content-Type': 'application/json' };\n  if (P.fmt === 'anthropic') {\n    url = base + '/messages';\n    headers['x-api-key'] = key;\n    headers['anthropic-version'] = '2023-06-01';\n    body = { model, max_tokens: 1500, temperature, system, messages: [{ role: 'user', content: user }] };\n  } else {\n    url = P.fmt === 'azure'\n      ? `${base}/openai/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${s.azure_api_version || '2024-10-21'}`\n      : base + '/chat/completions';\n    if (key) {\n      if (P.fmt === 'azure') headers['api-key'] = key;\n      else headers['Authorization'] = 'Bearer ' + key;\n    }\n    body = { model, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };\n  }\n  return { url, headers, body, provider: p, label: P.label + (from ? ', Schlüssel aus ' + from : ''), model, local: !!P.local };\n}\n\n// Node \"Lese-Anfrage\": the HTTP request for the AI that reads the complaint (llmRequest from shared/llm-request.js).\nconst ctx = $('Kontext').first().json;\nconst llm = llmRequest(ctx.settings, ctx.extractPrompt.system, ctx.extractPrompt.user, 0);\nreturn [{ json: { ...ctx, llm } }];"
+   }
+  },
+  {
+   "id": "14ac6759-a4ce-5be5-8d4f-0e043b2c621f",
+   "name": "KI liest E-Mail",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1650,
+    480
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.llm.url }}",
+    "sendHeaders": true,
+    "specifyHeaders": "json",
+    "jsonHeaders": "={{ JSON.stringify($json.llm.headers) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.llm.body) }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "id": "38a7acc1-b1b4-5b44-8218-8ce709acaf52",
+   "name": "KI-Antwort prüfen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1760,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Reads the text out of an answer in OpenAI format (choices) or Anthropic format (content blocks).\nconst aiText = j => (j.choices?.[0]?.message?.content ?? (j.content || []).map(b => b.text || '').join('') ?? '');\n\n// Node \"KI-Antwort prüfen\": checks the AI's reading of the complaint against the allowed values\n// and builds the Odoo search for the order (by order number, else by the sender's e-mail).\nconst ctx = $('Lese-Anfrage').first().json;\nconst raw = aiText($json) || '';\nlet ext = {};\ntry {\n  ext = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));\n} catch (e) {\n  ext = { parse_error: raw.slice(0, 200) };\n}\nconst allowed = {\n  problem_type: ['defekt', 'beschaedigt', 'falsch_geliefert', 'fehlt', 'sonstiges'],\n  customer_wants: ['ersatz', 'gutschrift', 'reparatur', 'unklar'],\n  urgency: ['normal', 'hoch'],\n  language: ['de', 'en'],\n  formality_used: ['Sie', 'du'],\n};\nconst defaults = { problem_type: 'sonstiges', customer_wants: 'unklar', urgency: 'normal', language: 'de', formality_used: 'Sie' };\nfor (const [k, vals] of Object.entries(allowed)) if (!vals.includes(ext[k])) ext[k] = defaults[k];\next.quantity_affected = Math.max(1, parseInt(ext.quantity_affected) || 1);\nconst ref = ext.order_ref ? String(ext.order_ref).trim() : null;\nconst domain = ref ? ['|', ['client_order_ref', '=', ref], ['name', '=', ref]] : [['partner_id.email', '=ilike', ctx.mail.from_email]];\nreturn [{ json: { ...ctx, ext, orderDomain: domain } }];"
+   }
+  },
+  {
+   "id": "2db2fc4b-d5b4-5ff6-8d08-5a338daa4e6d",
+   "name": "Auftrag suchen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1980,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"sale.order\", \"search_read\", [$(\"KI-Antwort prüfen\").first().json.orderDomain], {fields: [\"name\",\"client_order_ref\",\"partner_id\",\"date_order\",\"order_line\",\"picking_ids\",\"invoice_ids\",\"amount_total\"], limit: 1, order: \"date_order desc\"}]} }) }}"
+   }
+  },
+  {
+   "id": "627bbdd2-07a4-59fd-9085-d1f18d0afd3f",
+   "name": "Positionen lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2200,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"sale.order.line\", \"read\", [(($(\"Auftrag suchen\").first().json.result||[])[0]||{order_line:[]}).order_line], {fields: [\"name\",\"product_id\",\"product_uom_qty\",\"price_unit\",\"price_total\",\"tax_id\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "eebc1f80-74c5-5fe2-aea1-de84276f3b09",
+   "name": "Lieferung lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2420,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"stock.picking\", \"read\", [(($(\"Auftrag suchen\").first().json.result||[])[0]||{picking_ids:[]}).picking_ids], {fields: [\"name\",\"date_done\",\"state\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "e50416f0-a913-5db4-a73a-f41da094ec18",
+   "name": "Kunde lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2640,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"res.partner\", \"read\", [[(($(\"Auftrag suchen\").first().json.result||[])[0]||{partner_id:[0]}).partner_id[0]]], {fields: [\"name\",\"email\",\"is_company\",\"lang\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "e27e2a17-ec69-56ca-ae6d-f5f75f98541e",
+   "name": "Entscheidung",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2860,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Fixed complaint rules: which order line is meant, warranty, and which remedy is proposed.\n// The AI only fills in what the customer wrote (problem type, wish, product hint); everything here is plain logic.\n// The builder puts this file in front of the \"Entscheidung\" Code node; test/rules.test.mjs tests the same functions.\n\nconst DAY_MS = 1000 * 60 * 60 * 24;\nconst MONTH_DAYS = 30.44;\n\n// The order line the customer means: the product they named, else the only line, else (no hint at all) the first line.\nfunction pickLine(lines, productHint) {\n  const hint = (productHint || '').toLowerCase();\n  const code = l => (l.name.match(/\\[(.*?)\\]/) || [])[1]?.toLowerCase() || '###';\n  return (\n    lines.find(l => hint && (l.name.toLowerCase().includes(hint) || hint.includes(code(l)))) ||\n    (lines.length === 1 ? lines[0] : null) ||\n    (hint ? null : lines[0])\n  );\n}\n\n// Months between an Odoo datetime (\"2026-11-03 10:00:00\", UTC) and now, as a decimal number\nconst monthsSince = (odooDatetime, now) => (now - new Date(odooDatetime.replace(' ', 'T') + 'Z')) / (DAY_MS * MONTH_DAYS);\n\n// Warranty in months from the settings: business customers (B2B) and private customers (B2C)\nconst warrantyMonths = (isCompany, s) => (isCompany ? Number(s.warranty_months_b2b || 12) : Number(s.warranty_months_b2c || 24));\n\n// The remedy for a complaint whose order, line and delivery are known.\n// Order of the rules: warranty first, then wrong or missing goods, then the customer's wish, then the company default.\nfunction decideRemedy({ months, limit, problemType, customerWants, defaultRemedy }) {\n  if (months > limit) return { decision: 'out_of_warranty', reason: `Lieferung vor ${Math.round(months)} Monaten, Gewährleistung ${limit} Monate.` };\n  if (['falsch_geliefert', 'fehlt'].includes(problemType)) return { decision: 'replacement', reason: 'Falsche oder fehlende Ware wird nachgeliefert.' };\n  if (customerWants === 'gutschrift') return { decision: 'credit', reason: 'Kunde wünscht Gutschrift, innerhalb der Gewährleistung.' };\n  if (customerWants === 'ersatz') return { decision: 'replacement', reason: 'Kunde wünscht Ersatz, innerhalb der Gewährleistung.' };\n  return { decision: defaultRemedy === 'credit' ? 'credit' : 'replacement', reason: 'Innerhalb der Gewährleistung, Standardlösung laut Einstellungen.' };\n}\n\n// Amount for the affected quantity, gross, rounded to cents\nconst affectedAmount = (line, qty) => Math.round((line.price_total / line.product_uom_qty) * qty * 100) / 100;\n\n// Node \"Entscheidung\": finds the order line and decides the remedy with the rules in rules/complaint-rules.js,\n// then prepares the draft for Odoo (credit note or replacement order).\nconst c = $('KI-Antwort prüfen').first().json;\nconst s = c.settings, ext = c.ext;\nconst result = n => $(n).first().json.result || [];\nconst order = result('Auftrag suchen')[0] || null;\nconst lines = order ? result('Positionen lesen') : [];\nconst picks = order ? result('Lieferung lesen') : [];\nconst partner = order ? result('Kunde lesen')[0] || {} : {};\nconst now = new Date();\n\nlet decision, reason, line = null, amount = 0, delivered = null, months = null, limit = null;\nif (!order) {\n  decision = 'need_info';\n  reason = 'Kein passender Auftrag gefunden: Auftragsnummer fehlt oder stimmt nicht.';\n} else {\n  line = pickLine(lines, ext.product_hint);\n  delivered = picks.map(p => p.date_done).filter(Boolean).sort()[0] || null;\n  if (!line) {\n    decision = 'need_info';\n    reason = 'Auftrag gefunden, aber unklar, welches Produkt betroffen ist.';\n  } else if (!delivered) {\n    decision = 'need_info';\n    reason = 'Der Auftrag ist laut Odoo noch nicht ausgeliefert.';\n  } else {\n    amount = affectedAmount(line, Math.min(ext.quantity_affected, line.product_uom_qty));\n    months = monthsSince(delivered, now);\n    limit = warrantyMonths(partner.is_company, s);\n    ({ decision, reason } = decideRemedy({ months, limit, problemType: ext.problem_type, customerWants: ext.customer_wants, defaultRemedy: s.default_remedy }));\n  }\n}\n\nconst qty = line ? Math.min(ext.quantity_affected, line.product_uom_qty) : 0;\nconst facts = {\n  customer: partner.name || c.mail.from_name,\n  customer_type: partner.id ? (partner.is_company ? 'Firmenkunde' : 'Privatkunde') : 'unbekannt',\n  customer_email: partner.email || c.mail.from_email,\n  customer_lang: partner.lang || null,\n  order: order ? order.name : null,\n  order_ref: order ? order.client_order_ref : ext.order_ref,\n  order_date: order ? order.date_order.slice(0, 10) : null,\n  delivered: delivered ? delivered.slice(0, 10) : null,\n  product: line ? line.name : ext.product_hint,\n  quantity: qty,\n  amount_eur: amount,\n  invoice: order && order.invoice_ids.length ? order.invoice_ids[0] : null,\n  months_since_delivery: months ? Math.round(months * 10) / 10 : null,\n  warranty_months: limit,\n};\n\n// the draft in Odoo: a credit note against the customer's invoice, or a free replacement order\nlet draft = null;\nif (decision === 'credit')\n  draft = { model: 'account.move', values: {\n    move_type: 'out_refund', partner_id: order.partner_id[0], reversed_entry_id: facts.invoice, invoice_origin: order.name, ref: `Reklamation ${c.id}`,\n    invoice_line_ids: [[0, 0, { product_id: line.product_id[0], quantity: qty, price_unit: line.price_unit, tax_ids: [[6, 0, line.tax_id]] }]],\n  } };\nif (decision === 'replacement')\n  draft = { model: 'sale.order', values: {\n    partner_id: order.partner_id[0], origin: order.name, client_order_ref: `Ersatz zu ${order.client_order_ref || order.name}`,\n    note: `Ersatzlieferung, Reklamation ${c.id}`,\n    order_line: [[0, 0, { product_id: line.product_id[0], product_uom_qty: qty, price_unit: 0 }]],\n  } };\n\nreturn [{ json: { ...c, order, decision, reason, facts, draft } }];"
+   }
+  },
+  {
+   "id": "b9cfe689-64a1-585a-8a63-39979423884c",
+   "name": "Entwurf nötig?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3080,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "d1",
+       "leftValue": "={{ !!$json.draft }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "8b37ed64-091c-5228-bb48-91011eba6aa0",
+   "name": "Entwurf in Odoo anlegen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3300,
+    200
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, $json.draft.model, \"create\", [$json.draft.values]]} }) }}"
+   }
+  },
+  {
+   "id": "507d5f76-0a62-58ac-bf3b-8033dfbe30c8",
+   "name": "Antwort-Anfrage",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3520,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// One function builds the HTTP request for whichever AI the company chose in the settings.\n// Keys come from the environment (.env.local) or, for \"odoo\", from the AI keys already stored in Odoo.\n// Every provider gets the same prompts; only the request format differs (OpenAI, Anthropic or Azure).\nconst PROVIDERS = {\n  mock:      { label: 'Testmodell (offline)', url: 'http://mock-llm:8099/v1', fmt: 'openai', local: true },\n  ollama:    { label: 'Ollama (lokal)', url: 'http://host.docker.internal:11434/v1', fmt: 'openai', local: true, model: 'qwen2.5:7b' },\n  lmstudio:  { label: 'LM Studio (lokal)', url: 'http://host.docker.internal:1234/v1', fmt: 'openai', local: true },\n  openai:    { label: 'OpenAI', url: 'https://api.openai.com/v1', fmt: 'openai', env: 'OPENAI_API_KEY', model: 'gpt-4o-mini' },\n  anthropic: { label: 'Anthropic Claude', url: 'https://api.anthropic.com/v1', fmt: 'anthropic', env: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5' },\n  gemini:    { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', fmt: 'openai', env: 'GEMINI_API_KEY',\n               model: 'gemini-2.5-flash' },\n  mistral:   { label: 'Mistral', url: 'https://api.mistral.ai/v1', fmt: 'openai', env: 'MISTRAL_API_KEY', model: 'mistral-small-latest' },\n  azure:     { label: 'Azure OpenAI', url: '', fmt: 'azure', env: 'AZURE_OPENAI_API_KEY' },\n  custom:    { label: 'Eigener Endpunkt', url: '', fmt: 'openai', env: 'LLM_API_KEY' },\n};\n\n// \"Wie in Odoo eingerichtet\": find an AI key among the Odoo system parameters listed in the settings\nfunction odooAiKey(s) {\n  const rows = ($('KI aus Odoo lesen').first().json.result || []).filter(r => r.value);\n  const prefer = s.odoo_ai_prefer || 'openai';\n  const kind = r => (/openai/i.test(r.key) ? 'openai' : /google|gemini/i.test(r.key) ? 'gemini' : /anthropic|claude/i.test(r.key) ? 'anthropic' : null);\n  const found = rows.map(r => ({ provider: kind(r), key: r.value, param: r.key })).filter(r => r.provider);\n  return found.find(r => r.provider === prefer) || found[0] || null;\n}\n\nfunction llmRequest(s, system, user, temperature) {\n  let p = s.llm_provider || 'mock', key = null, from = null;\n  if (p === 'odoo') {\n    const hit = odooAiKey(s);\n    if (!hit)\n      throw new Error(\n        'In Odoo ist kein KI-Schlüssel hinterlegt (gesucht: ' + (s.odoo_ai_params || []).join(', ') + '). ' +\n          'Bitte in den Einstellungen einen anderen KI-Anbieter wählen.',\n      );\n    p = hit.provider;\n    key = hit.key;\n    from = 'Odoo (' + hit.param + ')';\n  }\n  const P = PROVIDERS[p];\n  if (!P) throw new Error('Unbekannter KI-Anbieter: ' + p);\n  const base = String(s.llm_url || P.url).replace(/\\/+$/, '');\n  if (!base) throw new Error('Für ' + P.label + ' fehlt die Adresse (URL) in den Einstellungen.');\n  key = key || (P.env ? $env[P.env] || $env.LLM_API_KEY : null) || null;\n  if (P.env && !key) throw new Error('Für ' + P.label + ' fehlt der API-Schlüssel ' + P.env + ' in .env.local.');\n  const model = (from ? s.odoo_ai_model || P.model : s.llm_model) || P.model || 'local-model';\n  let url, body;\n  const headers = { 'Content-Type': 'application/json' };\n  if (P.fmt === 'anthropic') {\n    url = base + '/messages';\n    headers['x-api-key'] = key;\n    headers['anthropic-version'] = '2023-06-01';\n    body = { model, max_tokens: 1500, temperature, system, messages: [{ role: 'user', content: user }] };\n  } else {\n    url = P.fmt === 'azure'\n      ? `${base}/openai/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${s.azure_api_version || '2024-10-21'}`\n      : base + '/chat/completions';\n    if (key) {\n      if (P.fmt === 'azure') headers['api-key'] = key;\n      else headers['Authorization'] = 'Bearer ' + key;\n    }\n    body = { model, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };\n  }\n  return { url, headers, body, provider: p, label: P.label + (from ? ', Schlüssel aus ' + from : ''), model, local: !!P.local };\n}\n\n// Node \"Antwort-Anfrage\": the AI writes the reply to the customer from the decision and the Odoo facts,\n// following prompts/EMAIL_STYLE.md and the company settings (llmRequest from shared/llm-request.js).\nconst c = $('Entscheidung').first().json;\nconst draftId = $('Entwurf in Odoo anlegen').isExecuted ? $('Entwurf in Odoo anlegen').first().json.result : null;\nconst s = c.settings;\nconst lang = s.language === 'auto' ? (c.ext.language === 'en' ? 'en-US' : 'de') : s.language;\nconst formality = s.formality === 'auto' ? c.ext.formality_used : s.formality;\nconst what = {\n  credit: 'Gutschrift über den genannten Betrag',\n  replacement: 'kostenlose Ersatzlieferung',\n  need_info: 'Rückfrage: fehlende Angaben anfordern',\n  out_of_warranty: 'Ablehnung, weil die Gewährleistung abgelaufen ist; kostenpflichtige Reparatur anbieten',\n}[c.decision];\nconst replySettings = {\n  language: lang, formality, tone: s.tone, length: s.length, apology: s.apology,\n  closing_de: s.closing_de, closing_en: s.closing_en, signature: s.signature,\n};\nconst system = [\n  'TASK: reply',\n  'Du schreibst die Antwort-E-Mail des Kundenservice der Rheinmark Handels GmbH auf eine Reklamation.',\n  'Halte dich exakt an diesen Stilleitfaden:',\n  c.style,\n  'Einstellungen für diese E-Mail:',\n  JSON.stringify(replySettings),\n  s.custom_rules ? 'Zusätzliche Regeln des Unternehmens: ' + s.custom_rules : '',\n  'Gib NUR die fertige E-Mail zurück: erste Zeile \"Betreff: ...\" (bzw. \"Subject: ...\"), Leerzeile, dann der Text mit Signatur.',\n].filter(Boolean).join('\\n\\n');\nconst user = [\n  `MESSAGE-ID: ${c.id}`,\n  `Entscheidung: ${what}`,\n  `Begründung (intern): ${c.reason}`,\n  `Fakten aus Odoo: ${JSON.stringify(c.facts)}`,\n  `Original-E-Mail des Kunden:\\nBetreff: ${c.mail.subject}\\n${c.mail.text}`,\n].join('\\n\\n');\nreturn [{ json: { ...c, draftId, lang, llm: llmRequest(s, system, user, 0.3) } }];"
+   }
+  },
+  {
+   "id": "11d433fb-3bd4-5ce7-a51d-0b0b8b22b770",
+   "name": "KI schreibt Antwort",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3740,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.llm.url }}",
+    "sendHeaders": true,
+    "specifyHeaders": "json",
+    "jsonHeaders": "={{ JSON.stringify($json.llm.headers) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.llm.body) }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "id": "f1b06fdf-b9b6-5b3f-959e-002b85f22bfd",
+   "name": "Stilprüfung",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3960,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Reads the text out of an answer in OpenAI format (choices) or Anthropic format (content blocks).\nconst aiText = j => (j.choices?.[0]?.message?.content ?? (j.content || []).map(b => b.text || '').join('') ?? '');\n\n// The hard writing rules from prompts/EMAIL_STYLE.md that code can check after the AI has written a reply.\n// A reply with a problem is sent back to the AI once (\"Stil korrigieren\"). test/rules.test.mjs tests the list.\nconst STYLE_RULES = [\n  [/[—–]|\\s--\\s/, 'Gedankenstrich (— oder –)'],\n  [/hope this (email|e-mail) finds you|reaching out|don'?t hesitate|feel free to|i hope this helps|great question/i, 'englische KI-Floskel'],\n  [/erreicht Sie wohlbehalten|zögern Sie nicht|ich hoffe, (das|dies) hilft|an uns gewandt haben|jederzeit (gerne )?zur Verfügung/i, 'deutsche KI-Floskel'],\n  [/\\b(delve|seamless|robust|leverage|elevate|streamline|comprehensive|pivotal|testament)\\b/i, 'typisches KI-Wort'],\n  [/\\b(nahtlos|umfassend|maßgeschneidert|zeitnah)\\b/i, 'Füllwort'],\n  [/nicht nur .{0,60}, sondern|isn'?t just .{0,40}, it'?s/i, 'Nicht-X-sondern-Y'],\n  [/\\[[^\\]]{2,30}\\]|\\{[a-z_]+\\}/, 'Platzhalter im Text'],\n  [/\\*\\*|^#+\\s/m, 'Markdown-Formatierung'],\n  [/!.*!/s, 'mehr als ein Ausrufezeichen'],\n];\n\nfunction styleProblems(text) {\n  const problems = STYLE_RULES.filter(([re]) => re.test(text)).map(([, label]) => label);\n  if (!/^(Betreff|Subject):/i.test(text)) problems.push('Betreffzeile fehlt');\n  if (/Mit freundlichen Grüßen[,.]/.test(text)) problems.push('Satzzeichen nach der Grußformel');\n  return problems;\n}\n\n// Node \"Stilprüfung\": checks the AI's reply against the hard writing rules (styleProblems from rules/reply-style.js).\nconst c = $('Antwort-Anfrage').first().json;\nconst text = (aiText($json) || '').trim();\nreturn [{ json: { ...c, reply: text, problems: styleProblems(text) } }];"
+   }
+  },
+  {
+   "id": "f3f1709e-bd59-5634-83c6-4cfc6028f02b",
+   "name": "Stil ok?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    4180,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "s1",
+       "leftValue": "={{ $json.problems.length }}",
+       "rightValue": 0,
+       "operator": {
+        "type": "number",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "15bbf893-f2cf-54d4-9373-dcc9e7e58646",
+   "name": "Korrektur-Anfrage",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4400,
+    420
+   ],
+   "parameters": {
+    "jsCode": "// One function builds the HTTP request for whichever AI the company chose in the settings.\n// Keys come from the environment (.env.local) or, for \"odoo\", from the AI keys already stored in Odoo.\n// Every provider gets the same prompts; only the request format differs (OpenAI, Anthropic or Azure).\nconst PROVIDERS = {\n  mock:      { label: 'Testmodell (offline)', url: 'http://mock-llm:8099/v1', fmt: 'openai', local: true },\n  ollama:    { label: 'Ollama (lokal)', url: 'http://host.docker.internal:11434/v1', fmt: 'openai', local: true, model: 'qwen2.5:7b' },\n  lmstudio:  { label: 'LM Studio (lokal)', url: 'http://host.docker.internal:1234/v1', fmt: 'openai', local: true },\n  openai:    { label: 'OpenAI', url: 'https://api.openai.com/v1', fmt: 'openai', env: 'OPENAI_API_KEY', model: 'gpt-4o-mini' },\n  anthropic: { label: 'Anthropic Claude', url: 'https://api.anthropic.com/v1', fmt: 'anthropic', env: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5' },\n  gemini:    { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', fmt: 'openai', env: 'GEMINI_API_KEY',\n               model: 'gemini-2.5-flash' },\n  mistral:   { label: 'Mistral', url: 'https://api.mistral.ai/v1', fmt: 'openai', env: 'MISTRAL_API_KEY', model: 'mistral-small-latest' },\n  azure:     { label: 'Azure OpenAI', url: '', fmt: 'azure', env: 'AZURE_OPENAI_API_KEY' },\n  custom:    { label: 'Eigener Endpunkt', url: '', fmt: 'openai', env: 'LLM_API_KEY' },\n};\n\n// \"Wie in Odoo eingerichtet\": find an AI key among the Odoo system parameters listed in the settings\nfunction odooAiKey(s) {\n  const rows = ($('KI aus Odoo lesen').first().json.result || []).filter(r => r.value);\n  const prefer = s.odoo_ai_prefer || 'openai';\n  const kind = r => (/openai/i.test(r.key) ? 'openai' : /google|gemini/i.test(r.key) ? 'gemini' : /anthropic|claude/i.test(r.key) ? 'anthropic' : null);\n  const found = rows.map(r => ({ provider: kind(r), key: r.value, param: r.key })).filter(r => r.provider);\n  return found.find(r => r.provider === prefer) || found[0] || null;\n}\n\nfunction llmRequest(s, system, user, temperature) {\n  let p = s.llm_provider || 'mock', key = null, from = null;\n  if (p === 'odoo') {\n    const hit = odooAiKey(s);\n    if (!hit)\n      throw new Error(\n        'In Odoo ist kein KI-Schlüssel hinterlegt (gesucht: ' + (s.odoo_ai_params || []).join(', ') + '). ' +\n          'Bitte in den Einstellungen einen anderen KI-Anbieter wählen.',\n      );\n    p = hit.provider;\n    key = hit.key;\n    from = 'Odoo (' + hit.param + ')';\n  }\n  const P = PROVIDERS[p];\n  if (!P) throw new Error('Unbekannter KI-Anbieter: ' + p);\n  const base = String(s.llm_url || P.url).replace(/\\/+$/, '');\n  if (!base) throw new Error('Für ' + P.label + ' fehlt die Adresse (URL) in den Einstellungen.');\n  key = key || (P.env ? $env[P.env] || $env.LLM_API_KEY : null) || null;\n  if (P.env && !key) throw new Error('Für ' + P.label + ' fehlt der API-Schlüssel ' + P.env + ' in .env.local.');\n  const model = (from ? s.odoo_ai_model || P.model : s.llm_model) || P.model || 'local-model';\n  let url, body;\n  const headers = { 'Content-Type': 'application/json' };\n  if (P.fmt === 'anthropic') {\n    url = base + '/messages';\n    headers['x-api-key'] = key;\n    headers['anthropic-version'] = '2023-06-01';\n    body = { model, max_tokens: 1500, temperature, system, messages: [{ role: 'user', content: user }] };\n  } else {\n    url = P.fmt === 'azure'\n      ? `${base}/openai/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${s.azure_api_version || '2024-10-21'}`\n      : base + '/chat/completions';\n    if (key) {\n      if (P.fmt === 'azure') headers['api-key'] = key;\n      else headers['Authorization'] = 'Bearer ' + key;\n    }\n    body = { model, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };\n  }\n  return { url, headers, body, provider: p, label: P.label + (from ? ', Schlüssel aus ' + from : ''), model, local: !!P.local };\n}\n\n// Node \"Korrektur-Anfrage\": a reply that broke a style rule goes back to the AI once, with the problems named.\nconst c = $json;\nconst system =\n  'TASK: fix_style\\nÜberarbeite die E-Mail so, dass diese Probleme verschwinden. Ändere keine Fakten, Beträge, Daten oder Namen. ' +\n  'Gib nur die fertige E-Mail zurück.\\n\\nStilleitfaden:\\n' + c.style;\nconst user = `MESSAGE-ID: ${c.id}\\nProbleme: ${c.problems.join('; ')}\\n\\n${c.reply}`;\nreturn [{ json: { ...c, llm: llmRequest(c.settings, system, user, 0.2) } }];"
+   }
+  },
+  {
+   "id": "a98e6261-06bd-52ff-91be-0af2a947ace9",
+   "name": "Stil korrigieren",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4620,
+    420
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.llm.url }}",
+    "sendHeaders": true,
+    "specifyHeaders": "json",
+    "jsonHeaders": "={{ JSON.stringify($json.llm.headers) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.llm.body) }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "id": "94436c7e-4000-5e36-adc5-98209f39db5a",
+   "name": "Freigabe-Mail bauen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4840,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Reads the text out of an answer in OpenAI format (choices) or Anthropic format (content blocks).\nconst aiText = j => (j.choices?.[0]?.message?.content ?? (j.content || []).map(b => b.text || '').join('') ?? '');\n\n// One look for every approval e-mail: light, inline styles, a table shell, no script.\n// Warm near-black ink, one hairline, 4px corners, one width, a coloured top edge per verdict,\n// one filled button for the expected next step. A small <style> block only adapts it to phones.\nconst M = {\n  ink: '#1d1c1a', muted: '#5c5a55', line: '#e2e0db', soft: '#f6f5f2', page: '#efeeea',\n  ok: '#24663b', look: '#8f8230', stop: '#a3231a', neutral: '#77746d', lookBg: '#f4efd4', stopBg: '#f9e5e2',\n  font: \"-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif\",\n  mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',\n};\n\nconst MAIL_CSS = [\n  '@media (max-width:600px){',\n  '.page{padding:12px 6px!important}.pad{padding:22px 14px 26px!important}.iban{padding:12px 12px!important}',\n  '.hide-s{display:none!important}.show-s{display:block!important}',\n  '.btn{display:block!important;margin:0 0 10px!important;text-align:center!important}',\n  'table.ib td{display:block!important;padding:2px 0!important}table.ib td.k{padding-top:8px!important}',\n  'table.kv td{display:block!important;width:auto!important;padding:0!important;border:0!important}table.kv td.k{padding-top:10px!important}',\n  `table.kv tr td.v{padding-bottom:10px!important;border-bottom:1px solid ${M.line}!important}`,\n  'table.data td,table.data th{font-size:13px!important;padding-right:6px!important}}',\n].join('\\n');\n\nconst mail = (accent, inner) =>\n  '<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">' +\n  `<style>${MAIL_CSS}</style></head>\\n` +\n  `<body style=\"margin:0;padding:0;background:${M.page}\">` +\n  `<div class=\"page\" style=\"margin:0;padding:24px 12px;background:${M.page};font-family:${M.font};color:${M.ink};-webkit-text-size-adjust:100%\">\\n` +\n  '<table class=\"shell\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ' +\n  `style=\"max-width:680px;margin:0 auto;background:#ffffff;border:1px solid ${M.line};border-top:4px solid ${accent};border-radius:4px;border-collapse:separate\">\\n` +\n  `<tr><td class=\"pad\" style=\"padding:28px 32px 32px;font-family:${M.font};font-size:15px;line-height:1.55;color:${M.ink}\">${inner}</td></tr></table></div></body></html>`;\n\n// small line above the headline: \"Eingangsrechnung · Supplier\"\nconst kicker = (flow, who) =>\n  `<p style=\"margin:0 0 6px;font-size:13px;line-height:1.4;color:${M.muted}\"><span style=\"font-weight:600;color:${M.ink}\">${flow}</span>${who ? ' · ' + who : ''}</p>`;\n// the verdict: the same word as in the subject, then one short line that says what it means\nconst verdict = (t, color) =>\n  `<h1 class=\"verdict\" style=\"margin:0 0 4px;font-size:22px;line-height:1.3;font-weight:600;color:${color || M.ink}\">${t}</h1>`;\nconst subline = t => `<p class=\"subline\" style=\"margin:0 0 12px;font-size:15px;line-height:1.5;color:${M.ink}\">${t}</p>`;\nconst para = (t, extra) => `<p style=\"margin:0 0 12px;font-size:15px;line-height:1.55;color:${M.ink};${extra || ''}\">${t}</p>`;\nconst note = t => `<p style=\"margin:0 0 8px;font-size:13px;line-height:1.5;color:${M.muted}\">${t}</p>`;\nconst section = t => `<h2 style=\"margin:28px 0 10px;font-size:15px;line-height:1.4;font-weight:600;color:${M.ink}\">${t}</h2>`;\nconst link = (href, t) => `<p style=\"margin:14px 0 0;font-size:15px\"><a href=\"${href}\" style=\"color:${M.ink};text-decoration:underline\">${t}</a></p>`;\nconst quote = (t, extra) =>\n  `<pre style=\"margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:${M.font};font-size:15px;line-height:1.55;color:${M.ink};` +\n  `background:${M.soft};border:1px solid ${M.line};border-radius:4px;padding:16px 20px;${extra || ''}\">${t}</pre>`;\n\n// tables: th / td cells, a data table with a header row, and label / value rows (\"facts\")\nconst th = (t, right, cls) =>\n  `<th${cls ? ` class=\"${cls}\"` : ''} style=\"padding:8px 12px 8px 0;border-bottom:1px solid ${M.ink};font-size:13px;font-weight:500;` +\n  `color:${M.muted};text-align:${right ? 'right' : 'left'};vertical-align:bottom\">${t}</th>`;\nconst td = (t, right, extra, cls) =>\n  `<td${cls ? ` class=\"${cls}\"` : ''} style=\"padding:9px 12px 9px 0;border-bottom:1px solid ${M.line};font-size:14px;` +\n  `text-align:${right ? 'right' : 'left'};${right ? 'white-space:nowrap;' : ''}${extra || ''}\">${t}</td>`;\nconst dataTable = (head, rows) =>\n  '<table class=\"data\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ' +\n  `style=\"border-collapse:collapse;margin:16px 0 4px;font-family:${M.font};color:${M.ink}\">${head ? `<tr>${head}</tr>` : ''}${rows}</table>`;\n// rows without a value are left out instead of printing a dash\nconst facts = (rows, cls) =>\n  `<table class=\"kv${cls ? ' ' + cls : ''}\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ` +\n  `style=\"border-collapse:collapse;margin:16px 0 4px;font-family:${M.font};color:${M.ink}\">` +\n  rows\n    .filter(r => r && r[1] !== null && r[1] !== undefined && r[1] !== '')\n    .map(([k, v]) =>\n      `<tr><td class=\"k\" style=\"width:150px;padding:9px 12px 9px 0;border-bottom:1px solid ${M.line};font-size:13px;font-weight:500;color:${M.muted};vertical-align:top\">${k}</td>` +\n      `<td class=\"v\" style=\"padding:9px 0;border-bottom:1px solid ${M.line};font-size:14px;line-height:1.5;vertical-align:top\">${v}</td></tr>`)\n    .join('') +\n  '</table>';\nconst decided = rows => section('Wie entschieden wurde') + facts(rows, 'how');\n\n// buttons: [href, label, kind] with kind 'primary' (filled), 'secondary' (outlined) or 'text' (plain link)\nconst button = ([href, t, kind]) =>\n  kind === 'text'\n    ? `<a class=\"btn\" href=\"${href}\" style=\"display:inline-block;margin:0 8px 8px 4px;padding:11px 4px;color:${M.ink};font-family:${M.font};font-size:15px;line-height:1.2;text-decoration:underline\">${t}</a>`\n    : `<a class=\"btn\" href=\"${href}\" style=\"display:inline-block;margin:0 8px 8px 0;padding:12px 20px;border:1px solid ${M.ink};border-radius:4px;` +\n      `background:${kind === 'primary' ? M.ink : '#ffffff'};color:${kind === 'primary' ? '#ffffff' : M.ink};font-family:${M.font};font-size:15px;font-weight:600;line-height:1.2;text-decoration:none\">${t}</a>`;\nconst buttons = (list, after) =>\n  `<div class=\"actions\" style=\"margin-top:28px\">${list.filter(Boolean).map(button).join('')}` +\n  (after ? `<p style=\"margin:10px 0 0;font-size:13px;line-height:1.5;color:${M.muted}\">${after}</p>` : '') +\n  '</div>';\n\nconst deDate = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : null);\nconst groups = s => String(s || '').replace(/\\s/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();\n// Odoo is linked at the address the person opens in the browser (ODOO_PUBLIC_URL in .env.local, default localhost)\nconst ODOO_WEB = String($env.ODOO_PUBLIC_URL || 'http://localhost:8069').replace(/\\/+$/, '');\n\n// Node \"Freigabe-Mail bauen\": the approval e-mail to the complaint team. Presentation only: the decision,\n// the facts and the reply come from the earlier nodes. Uses the helpers in shared/mail-layout.js.\nlet c = $('Stilprüfung').first().json;\nif ($('Stil korrigieren').isExecuted) {\n  const fixed = (aiText($('Stil korrigieren').first().json) || '').trim();\n  if (fixed && !fixed.startsWith('NO_FIXTURE')) c = { ...c, reply: fixed, fixed: true };\n}\nconst [first, ...rest] = c.reply.split('\\n');\nconst subject = first.replace(/^(Betreff|Subject):\\s*/i, '').trim();\nconst body = rest.join('\\n').replace(/^\\s+/, '');\nconst resume = $execution.resumeUrl + ($execution.resumeUrl.includes('?') ? '&' : '?');\nconst esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst money = v => Number(v).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ' €';\nconst f = c.facts;\n\n// one word per decision, the same in the subject and the headline, then one short line\nconst label = { credit: 'Gutschrift', replacement: 'Ersatzlieferung', need_info: 'Rückfrage', out_of_warranty: 'Ablehnung' }[c.decision];\nconst sub = {\n  credit: `Gutschrift über ${money(f.amount_eur)} als Entwurf in Odoo, Antwort an den Kunden ist geschrieben.`,\n  replacement: 'Ersatzauftrag als Entwurf in Odoo, Antwort an den Kunden ist geschrieben.',\n  need_info: 'Angaben fehlen. Die Rückfrage an den Kunden ist geschrieben.',\n  out_of_warranty: 'Außerhalb der Gewährleistung. Die Antwort an den Kunden ist geschrieben.',\n}[c.decision];\nconst accent = { credit: M.ok, replacement: M.ok, need_info: M.neutral, out_of_warranty: M.look }[c.decision];\nconst odooAction = c.draft && c.draft.model === 'sale.order' ? 'sale.action_quotations' : 'account.action_move_out_refund_type';\nconst odooLink = c.draftId && c.draft ? `${ODOO_WEB}/odoo/action-${odooAction}/${c.draftId}` : null;\n\n// the facts as a person reads them: labels instead of codes, exact age of the delivery, warranty left\nconst problemDe = { defekt: 'Defekt', beschaedigt: 'Beschädigt', falsch_geliefert: 'Falsche Ware geliefert', fehlt: 'Ware fehlt', sonstiges: 'Sonstiges' }[c.ext.problem_type] || c.ext.problem_type;\nconst wishDe = { ersatz: 'Ersatz', gutschrift: 'Gutschrift', reparatur: 'Reparatur', unklar: 'nicht genannt' }[c.ext.customer_wants] || c.ext.customer_wants;\nconst daysSince = f.delivered ? Math.floor((Date.now() - Date.parse(f.delivered + 'T00:00:00Z')) / 86400000) : null;\nconst ago = d => (d === null ? '' : d < 1 ? 'heute' : d === 1 ? 'vor 1 Tag' : d < 60 ? `vor ${d} Tagen` : `vor ${Math.round(d / 30.44)} Monaten`);\nconst left = () => {\n  const m = f.warranty_months - f.months_since_delivery;\n  if (m >= 2) return `noch ${Math.floor(m)} Monate`;\n  if (m >= 1) return 'noch 1 Monat';\n  return `noch ${Math.max(0, Math.round(m * 30.44))} Tage`;\n};\nconst product = p => {\n  if (!p) return null;\n  const code = (String(p).match(/^\\[(.*?)\\]\\s*/) || [])[1];\n  const name = String(p).replace(/^\\[.*?\\]\\s*/, '');\n  return code && !name.includes(code) ? `${name} (${code})` : name;\n};\nconst muted = t => `<span style=\"color:${M.muted}\">${t}</span>`;\nconst custType = f.customer_type === 'unbekannt' ? 'nicht in Odoo gefunden' : f.customer_type;\nconst rows = [\n  ['Kunde', `${esc(f.customer)} ${muted('· ' + esc(custType))}`],\n  ['Auftrag', f.order_ref || f.order ? esc([f.order_ref, f.order && f.order !== f.order_ref ? `Odoo ${f.order}` : null].filter(Boolean).join(' · ')) : null],\n  ['Produkt', f.product ? `${esc(product(f.product))}${f.quantity ? ` · ${f.quantity} Stück` : ''}` : null],\n  ['Geliefert', f.delivered ? `${deDate(f.delivered)}${daysSince !== null ? ' ' + muted('· ' + ago(daysSince)) : ''}` : null],\n  ['Gewährleistung', f.warranty_months\n    ? `${f.warranty_months} Monate (${f.customer_type}) · ${c.decision === 'out_of_warranty' ? `<b style=\"color:${M.stop}\">abgelaufen</b>` : left()}`\n    : null],\n  ['Betrag', f.amount_eur ? `${money(f.amount_eur)} ${muted('inkl. USt')}` : null],\n  ['Problem', esc(problemDe)],\n  ['Wunsch des Kunden', esc(wishDe)],\n];\nconst original = String(c.mail.text || '').trim();\nconst short = original.length > 700 ? original.slice(0, 700).replace(/\\s+\\S*$/, '') + ' …' : original;\nconst aiRow = `${esc(c.llm.label)}${c.llm.model && c.llm.model !== 'local-model' ? `, Modell ${esc(c.llm.model)}` : ''} · ` +\n  (c.llm.local ? 'lokal, keine Daten nach außen' : 'Cloud: Inhalt der Reklamation wurde an diesen Anbieter übertragen');\nconst styleRow = c.fixed\n  ? 'Erster Entwurf verletzte Stilregeln und wurde einmal automatisch überarbeitet'\n  : c.problems.length ? `<span style=\"color:${M.stop}\">Stilhinweise: ${esc(c.problems.join(', '))}</span>` : 'Keine Verstöße gegen die Stilregeln';\nconst what = {\n  credit: 'Freigeben bucht die Gutschrift in Odoo und sendet die Antwort.',\n  replacement: 'Freigeben bestätigt den Ersatzauftrag in Odoo und sendet die Antwort.',\n  need_info: 'Freigeben sendet die Rückfrage an den Kunden.',\n  out_of_warranty: 'Freigeben sendet die Antwort an den Kunden.',\n}[c.decision];\n\nconst html = mail(\n  accent,\n  kicker('Reklamation', esc(f.customer)) + verdict(esc(label)) + subline(sub) +\n    (c.ext.summary ? para(esc(c.ext.summary), `color:${M.muted}`) : '') +\n    facts(rows) + (odooLink ? link(odooLink, 'Entwurf in Odoo öffnen') : '') +\n    (short\n      ? section(`E-Mail des Kunden <span style=\"font-weight:400;color:${M.muted}\">(${esc(c.mail.from_email)})</span>`) +\n        quote(`Betreff: ${esc(c.mail.subject)}\\n\\n${esc(short)}`, `background:#ffffff;color:${M.muted};font-size:14px`)\n      : '') +\n    section(`Antwort an den Kunden <span style=\"font-weight:400;color:${M.muted}\">(${esc(f.customer_email)})</span>`) +\n    quote(`Betreff: ${esc(subject)}\\n\\n${esc(body)}`) +\n    decided([['Regel', esc(c.reason)], ['KI', aiRow], ['Stilprüfung', styleRow]]) +\n    buttons(\n      [[`${resume}d=approve`, 'Freigeben und senden', 'primary'], [`${resume}d=reject`, 'Ablehnen', 'secondary']],\n      `${what} Ablehnen ${c.draftId ? 'storniert den Entwurf in Odoo und ' : ''}sendet nichts an den Kunden. Ohne Klick passiert nichts.`,\n    ),\n);\nconst approvalSubject = `[Reklamation] ${label} · ${f.customer}${f.amount_eur && c.decision === 'credit' ? ' · ' + money(f.amount_eur) : ''}`;\nreturn [{ json: { ...c, subject, body, approvalHtml: html, approvalSubject } }];"
+   }
+  },
+  {
+   "id": "1a0c2c00-d0dc-5c52-96b9-d98ab9228ff2",
+   "name": "Freigabe anfragen",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    5060,
+    300
+   ],
+   "parameters": {
+    "fromEmail": "={{ $json.settings.service_email }}",
+    "toEmail": "={{ $json.settings.approval_email }}",
+    "subject": "={{ $json.approvalSubject }}",
+    "emailFormat": "html",
+    "html": "={{ $json.approvalHtml }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "smtp": {
+     "id": "smtp-mailpit",
+     "name": "Mailpit SMTP"
+    }
+   }
+  },
+  {
+   "id": "b072f815-a25b-50ee-8d9f-9403eaacb070",
+   "name": "Auf Freigabe warten",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    5280,
+    300
+   ],
+   "parameters": {
+    "resume": "webhook",
+    "options": {}
+   },
+   "webhookId": "freigabe"
+  },
+  {
+   "id": "3328ed27-1489-5ec5-b344-e34dff6b1813",
+   "name": "Abschluss vorbereiten",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5500,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Abschluss vorbereiten\": what the click means. Approve books the draft (credit note posted,\n// replacement order confirmed); reject cancels it. The note goes on the order in Odoo.\nconst c = $('Freigabe-Mail bauen').first().json;\nconst approved = ($json.query?.d || $json.d) === 'approve';\nlet call = null;\nif (c.draftId && c.draft) {\n  const isOrder = c.draft.model === 'sale.order';\n  const method = approved ? (isOrder ? 'action_confirm' : 'action_post') : isOrder ? 'action_cancel' : 'button_cancel';\n  call = { model: c.draft.model, method, args: [[c.draftId]] };\n}\nconst de = { credit: 'Gutschrift', replacement: 'Ersatzlieferung', need_info: 'Rückfrage', out_of_warranty: 'Ablehnung (außerhalb Gewährleistung)' }[c.decision];\nconst note = `Reklamation ${c.id}: ${de} ${approved ? 'freigegeben' : 'abgelehnt'}. ${c.reason}`;\nreturn [{ json: { ...c, approved, call, note } }];"
+   }
+  },
+  {
+   "id": "f47871d5-f6a8-5b54-9a74-d1d2fcb4612c",
+   "name": "Odoo-Aktion?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    5720,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "o1",
+       "leftValue": "={{ !!$json.call }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "3cb89379-c037-5d1f-9e59-54486b343347",
+   "name": "In Odoo buchen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5940,
+    200
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, $json.call.model, $json.call.method, $json.call.args]} }) }}"
+   }
+  },
+  {
+   "id": "7cc74da6-4bb2-5b07-8e1d-1f80f7e653e3",
+   "name": "Freigegeben?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    6160,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "a1",
+       "leftValue": "={{ $('Abschluss vorbereiten').first().json.approved }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "1598d898-7be6-506c-b22a-7d00ebb7a69a",
+   "name": "Antwort an Kunden",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    6380,
+    200
+   ],
+   "parameters": {
+    "fromEmail": "={{ $('Abschluss vorbereiten').first().json.settings.service_email }}",
+    "toEmail": "={{ $('Abschluss vorbereiten').first().json.facts.customer_email }}",
+    "subject": "={{ $('Abschluss vorbereiten').first().json.subject }}",
+    "emailFormat": "text",
+    "text": "={{ $('Abschluss vorbereiten').first().json.body }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "smtp": {
+     "id": "smtp-mailpit",
+     "name": "Mailpit SMTP"
+    }
+   }
+  },
+  {
+   "id": "861b1dd1-b08d-5933-b1e6-d218f49e7539",
+   "name": "Notiz im Auftrag",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    6600,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"sale.order\", \"message_post\", [[($(\"Abschluss vorbereiten\").first().json.order||{id:0}).id]], {body: $(\"Abschluss vorbereiten\").first().json.note}]} }) }}"
+   }
+  },
+  {
+   "id": "5d3033ac-9293-5ceb-9256-e6bed9bd983d",
+   "name": "Protokollzeile",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    6820,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Protokollzeile\": one JSON line per complaint in data/log.jsonl.\nconst c = $('Abschluss vorbereiten').first().json;\nconst entry = {\n  at: new Date().toISOString(), id: c.id, customer: c.facts.customer, order: c.facts.order, decision: c.decision,\n  approved: c.approved, draft: c.draft ? c.draft.model + ':' + c.draftId : null, amount_eur: c.facts.amount_eur, style_fixed: !!c.fixed,\n};\nconst line = JSON.stringify(entry) + '\\n';\nreturn [{ json: { line }, binary: { data: { data: Buffer.from(line).toString('base64'), mimeType: 'application/json', fileName: 'log.jsonl' } } }];"
+   }
+  },
+  {
+   "id": "a7bfe5ce-623b-59d5-a18f-7b06b70f4409",
+   "name": "Protokoll schreiben",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    7040,
+    300
+   ],
+   "parameters": {
+    "operation": "write",
+    "fileName": "/files/data/log.jsonl",
+    "options": {
+     "append": true
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Reklamation eingegangen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen lesen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Stilregeln datei",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stilregeln datei": {
+   "main": [
+    [
+     {
+      "node": "Stilregeln lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stilregeln lesen": {
+   "main": [
+    [
+     {
+      "node": "Kontext",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Kontext": {
+   "main": [
+    [
+     {
+      "node": "Odoo Login",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Odoo Login": {
+   "main": [
+    [
+     {
+      "node": "KI aus Odoo lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI aus Odoo lesen": {
+   "main": [
+    [
+     {
+      "node": "Lese-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Lese-Anfrage": {
+   "main": [
+    [
+     {
+      "node": "KI liest E-Mail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI liest E-Mail": {
+   "main": [
+    [
+     {
+      "node": "KI-Antwort prüfen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI-Antwort prüfen": {
+   "main": [
+    [
+     {
+      "node": "Auftrag suchen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Auftrag suchen": {
+   "main": [
+    [
+     {
+      "node": "Positionen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Positionen lesen": {
+   "main": [
+    [
+     {
+      "node": "Lieferung lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Lieferung lesen": {
+   "main": [
+    [
+     {
+      "node": "Kunde lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Kunde lesen": {
+   "main": [
+    [
+     {
+      "node": "Entscheidung",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Entscheidung": {
+   "main": [
+    [
+     {
+      "node": "Entwurf nötig?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Entwurf nötig?": {
+   "main": [
+    [
+     {
+      "node": "Entwurf in Odoo anlegen",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Antwort-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Entwurf in Odoo anlegen": {
+   "main": [
+    [
+     {
+      "node": "Antwort-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Antwort-Anfrage": {
+   "main": [
+    [
+     {
+      "node": "KI schreibt Antwort",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI schreibt Antwort": {
+   "main": [
+    [
+     {
+      "node": "Stilprüfung",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stilprüfung": {
+   "main": [
+    [
+     {
+      "node": "Stil ok?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stil ok?": {
+   "main": [
+    [
+     {
+      "node": "Freigabe-Mail bauen",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Korrektur-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Korrektur-Anfrage": {
+   "main": [
+    [
+     {
+      "node": "Stil korrigieren",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stil korrigieren": {
+   "main": [
+    [
+     {
+      "node": "Freigabe-Mail bauen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Freigabe-Mail bauen": {
+   "main": [
+    [
+     {
+      "node": "Freigabe anfragen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Freigabe anfragen": {
+   "main": [
+    [
+     {
+      "node": "Auf Freigabe warten",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Auf Freigabe warten": {
+   "main": [
+    [
+     {
+      "node": "Abschluss vorbereiten",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Abschluss vorbereiten": {
+   "main": [
+    [
+     {
+      "node": "Odoo-Aktion?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Odoo-Aktion?": {
+   "main": [
+    [
+     {
+      "node": "In Odoo buchen",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Freigegeben?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "In Odoo buchen": {
+   "main": [
+    [
+     {
+      "node": "Freigegeben?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Freigegeben?": {
+   "main": [
+    [
+     {
+      "node": "Antwort an Kunden",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Notiz im Auftrag",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Antwort an Kunden": {
+   "main": [
+    [
+     {
+      "node": "Notiz im Auftrag",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Notiz im Auftrag": {
+   "main": [
+    [
+     {
+      "node": "Protokollzeile",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Protokollzeile": {
+   "main": [
+    [
+     {
+      "node": "Protokoll schreiben",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ },
+ "pinData": {}
+}

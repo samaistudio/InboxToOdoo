@@ -1,0 +1,1 @@
+{"order_ref": "RW-2026-0447", "product_hint": "LED-30", "quantity_affected": 1, "problem_type": "defekt", "customer_wants": "ersatz", "urgency": "normal", "language": "en", "formality_used": "Sie", "summary": "Eine von zwei Arbeitsleuchten LED-30 flackert nach einigen Minuten, die Kundin möchte Ersatz."}

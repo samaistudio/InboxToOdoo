@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InboxToOdoo walkthrough</title>
+<meta name="description" content="Nine real screens from the InboxToOdoo demo: supplier invoices and a customer complaint, from the mailbox to the approval mail to the draft in Odoo.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">InboxToOdoo</a>
+  <nav><a class="hide-s" href="./#how">How it works</a><a class="on" href="tutorial.html">Walkthrough</a><a href="https://github.com/samaistudio/InboxToOdoo">Code</a><a href="./#about">Contact</a></nav>
+</div></header>
+<main class="wrap">
+  <div class="tut-head">
+    <h1>Walkthrough: from the mailbox to Odoo</h1>
+    <p>Real screens from the running demo with a fictional wholesaler. Scroll: the screenshot stays and the part each note explains is highlighted.</p>
+    <div class="index" id="index"></div>
+  </div>
+  <div class="walk">
+    <div class="stagebox" id="stage" aria-hidden="true"><div class="frame" id="frame"><img id="img" alt=""><svg id="veil"></svg></div><div class="hint" id="hint">Scroll to go through the steps</div><a class="full" id="full" href="#">Open full size</a></div>
+    <div id="steps"></div>
+  </div>
+  <div class="endcard">
+    <h2 style="margin:0 0 6px;font-size:24px">See it live</h2>
+    <p class="muted" style="margin:0">The demo runs locally with Docker: Odoo 18 Community, n8n, a test mailbox and OCR. Code: <a href="https://github.com/samaistudio/InboxToOdoo">github.com/samaistudio/InboxToOdoo</a>. A live demo or a code walkthrough is available on request.</p>
+    <div class="actions"><a class="btn primary" href="mailto:contact.samzeidi@gmail.com?subject=InboxToOdoo">Email Sam Zeidi</a><a class="btn" href="./">Back to the product page</a></div>
+  </div>
+</main>
+<footer><div class="wrap">Project by Sam Zeidi, Köln · contact.samzeidi@gmail.com · All companies, people and numbers in the demo are fictional. Keys: ← → move between steps.</div></footer>
+<script>
+const STEPS = /*STEPS*/[];
+const $ = id => document.getElementById(id);
+const PAD = 8;
+// a light veil, so the rest of the screen stays readable: dark ink at 14 % on a light page, black at 30 % in dark mode
+const VEIL = matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(0,0,0,.3)' : 'rgba(29,28,26,.14)';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// one SVG overlay: a light veil with a hole only where the active note points (one or more parts), outlined.
+// active = -1 (the stacked phone view) cuts out every note, so the numbers still have something to point at.
+const veil = (s, active) => {
+  const R = r => [r[0] - PAD, r[1] - PAD, r[2] + 2 * PAD, r[3] + 2 * PAD];
+  const parts = s.notes.flatMap((n, k) => (active === -1 || k === active) ? (n.parts || [n.r]).map(R) : []);
+  const holes = parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="black"/>`).join('');
+  const lines = parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="none" stroke="#1d1c1a" stroke-width="${active === -1 ? 1.5 : 3}" vector-effect="non-scaling-stroke"/>`).join('');
+  return `<defs><mask id="m${s.i}${active}"><rect width="${s.w}" height="${s.h}" fill="white"/>${holes}</mask></defs><rect width="${s.w}" height="${s.h}" fill="${VEIL}" mask="url(#m${s.i}${active})"/>${lines}`;
+};
+// number markers sit in the gutter left of the outlined box, level with its top edge, so they never cover content
+// (boxes that start at the very left edge get the marker in the first 26 px, where the screens have only padding)
+const marks = (s, active) => s.notes.map((n, k) => { const x = Math.max(13, n.r[0] - PAD - 17), y = n.r[1] - PAD + 13;
+  return `<div class="mark${k === active ? ' on' : ''}" style="left:${x / s.w * 100}%;top:${y / s.h * 100}%">${k + 1}</div>`; }).join('');
+
+// phones: under each note a cut-out of the part it explains, from the 390 px capture where there is one
+// (it reflows like a phone mail and stays readable), else from the desktop screen
+const crop = (s, k) => {
+  // a note can ask for the desktop screen (m.notes[k] null), e.g. when the phone layout hides the part it explains
+  const useM = s.m && s.m.notes[k], P = useM ? s.m : s, n = P.notes[k], pad = 12;
+  let [x, y, w, h] = useM ? [0, n.r[1] - pad, P.w, n.r[3] + 2 * pad] : [n.r[0] - pad, n.r[1] - pad, n.r[2] + 2 * pad, n.r[3] + 2 * pad];
+  // a small part of a desktop screen is shown with some context around it, not blown up
+  if (!useM && w < 360) { x = Math.max(0, x - (360 - w) / 2); w = 360; }
+  x = Math.max(0, x); y = Math.max(0, y); w = Math.min(P.w - x, w); h = Math.min(P.h - y, h);
+  const lines = (n.parts || [n.r]).map(([a, b, c, d]) => [Math.max(2, a - PAD), b - PAD, Math.min(P.w - 2, a + c + PAD), d + 2 * PAD])
+    .map(([a, b, r, d]) => `<rect x="${a}" y="${b}" width="${r - a}" height="${d}" rx="6" fill="none" stroke="#1d1c1a" stroke-width="2" vector-effect="non-scaling-stroke"/>`).join('');
+  return `<a class="crop" href="${P.img}" title="Open the full screenshot" style="aspect-ratio:${w} / ${h}"><span style="width:${P.w / w * 100}%;transform:translate(${-x / P.w * 100}%, ${-y / P.h * 100}%)"><img src="${P.img}" alt="" loading="lazy" width="${P.w}" height="${P.h}"><svg viewBox="0 0 ${P.w} ${P.h}">${lines}</svg></span></a>`;
+};
+STEPS.forEach((s, i) => { s.i = i; new Image().src = s.img; });
+$('index').innerHTML = STEPS.map((s, i) => `<a href="#step-${i + 1}" data-i="${i}" title="${s.title}">${i + 1}</a>`).join('');
+$('steps').innerHTML = STEPS.map((s, i) => `<article class="step" id="step-${i + 1}">
+  <div class="k">Step ${i + 1} of ${STEPS.length}</div><h2>${s.title}</h2><p>${s.intro || ''}</p>
+  <div class="inline"><a class="pic" href="${s.img}" title="Open the full-size screenshot"><img src="${s.img}" alt="${s.title}" loading="lazy" width="${s.w}" height="${s.h}"><svg viewBox="0 0 ${s.w} ${s.h}" preserveAspectRatio="none">${veil(s, -1)}</svg>${marks(s, -1)}</a></div>
+  ${s.notes.map((n, k) => `<div class="note" data-s="${i}" data-n="${k}"><div class="n">${k + 1}</div><div><b>${n.t}</b><span>${n.d}</span></div>${crop(s, k)}</div>`).join('')}
+  <p class="whole"><a href="${(s.m || s).img}">Open the whole screenshot</a></p>
+</article>`).join('');
+
+const notes = [...document.querySelectorAll('.note')];
+let cur = { s: -1, n: -1 };
+function show(si, ni) {
+  if (si === cur.s && ni === cur.n) return;
+  const s = STEPS[si], frame = $('frame'), changed = si !== cur.s, first = cur.s === -1;
+  cur = { s: si, n: ni };
+  notes.forEach(e => e.classList.toggle('on', +e.dataset.s === si && +e.dataset.n === ni));
+  document.querySelectorAll('#index a').forEach(a => a.classList.toggle('on', +a.dataset.i === si));
+  const place = () => {
+    const box = $('stage').getBoundingClientRect(), m = 16;
+    const sc = Math.min(1, (box.width - 2 * m) / s.w);
+    const W = s.w * sc, H = s.h * sc, r = s.notes[ni].r;
+    const x = (box.width - W) / 2;
+    let y = m; // top-aligned, so a short screen does not float in the middle
+    if (H > box.height - 2 * m) { y = box.height / 2 - (r[1] + r[3] / 2) * sc; y = Math.min(m, Math.max(box.height - H - m, y)); }
+    frame.style.width = s.w + 'px'; frame.style.height = s.h + 'px';
+    frame.style.transform = `translate(${x}px, ${y}px) scale(${sc})`;
+    $('veil').setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+    $('veil').innerHTML = veil(s, ni);
+    frame.querySelectorAll('.mark').forEach(e => e.remove());
+    frame.insertAdjacentHTML('beforeend', marks(s, ni));
+  };
+  $('full').href = s.img;
+  if (changed && !reduce && !first) {
+    frame.classList.add('fade');
+    setTimeout(() => { frame.style.transition = 'none'; $('img').src = s.img; place(); frame.offsetWidth; frame.style.transition = ''; frame.classList.remove('fade'); }, 180);
+  } else { if (changed) $('img').src = s.img; place(); }
+}
+// the active note is the one closest to a line a little above the middle of the window
+function pick() {
+  const line = innerHeight * 0.42;
+  let best = notes[0], d = Infinity;
+  for (const e of notes) { const r = e.getBoundingClientRect(); const dd = Math.abs((r.top + r.bottom) / 2 - line); if (dd < d) { d = dd; best = e; } }
+  show(+best.dataset.s, +best.dataset.n);
+}
+let ticking = false;
+addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; pick(); }); } if (scrollY > 200) { $('hint').style.display = 'none'; $('full').style.display = 'block'; } }, { passive: true });
+addEventListener('resize', () => { const c = cur; cur = { s: c.s, n: -1 }; show(c.s, c.n); });
+const go = el => el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+notes.forEach(e => e.addEventListener('click', () => { if (innerWidth >= 1100) go(e); }));
+$('index').addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault();
+  const el = $('step-' + (+a.dataset.i + 1)); el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); history.replaceState(null, '', a.getAttribute('href')); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const i = Math.max(0, Math.min(STEPS.length - 1, cur.s + (e.key === 'ArrowRight' ? 1 : -1)));
+  $('step-' + (i + 1)).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+});
+show(0, 0);
+if (location.hash) setTimeout(pick, 300);
+</script>
+</body>
+</html>

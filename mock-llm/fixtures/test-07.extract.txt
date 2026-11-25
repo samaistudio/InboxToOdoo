@@ -1,0 +1,1 @@
+{"order_ref": null, "product_hint": null, "quantity_affected": 1, "problem_type": "sonstiges", "customer_wants": "unklar", "urgency": "normal", "language": "de", "formality_used": "Sie", "summary": "Allgemeine Beschwerde über nicht richtig funktionierendes Werkzeug, ohne Auftrag oder Produkt."}

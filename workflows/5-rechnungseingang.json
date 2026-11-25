@@ -1,0 +1,249 @@
+{
+ "id": "rwRechnEing005",
+ "name": "Eingangsrechnung: Posteingang",
+ "nodes": [
+  {
+   "id": "b76c40ba-a65d-5194-873d-be5bee0fdabb",
+   "name": "Jede Minute",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 1
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "cb511de4-079d-58a9-b04c-f434c2da1f6e",
+   "name": "Einstellungen lesen",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    200,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "e2f20589-f121-587c-9e0e-58b72b7cf5a3",
+   "name": "Einstellungen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    400,
+    300
+   ],
+   "parameters": {
+    "operation": "fromJson",
+    "options": {}
+   }
+  },
+  {
+   "id": "adb1e5e5-895f-53f2-baf3-c371a54e626a",
+   "name": "Postfach abrufen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    600,
+    300
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "http://mailpit:8025/api/v1/messages?limit=50",
+    "options": {
+     "timeout": 120000
+    }
+   }
+  },
+  {
+   "id": "cef2e7dd-4415-5d35-b97a-0c233cf42f8c",
+   "name": "Neue Rechnungen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    800,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Neue Rechnungen\": unread mails with an attachment to the invoice mailbox, oldest first.\nconst s = $('Einstellungen').first().json.data;\nconst box = (s.inv_mailbox || 'rechnungen@rheinmark-handel.example').toLowerCase();\nreturn ($json.messages || [])\n  .filter(m => !m.Read && (m.To || []).some(t => t.Address.toLowerCase() === box) && m.Attachments > 0)\n  .sort((a, b) => String(a.Created).localeCompare(String(b.Created)))\n  .map(m => ({ json: { ID: m.ID, MessageID: m.MessageID } }));"
+   }
+  },
+  {
+   "id": "b0066626-2596-586a-8182-680a9808d311",
+   "name": "E-Mail lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1000,
+    300
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=http://mailpit:8025/api/v1/message/{{ $json.ID }}",
+    "options": {
+     "timeout": 120000
+    }
+   }
+  },
+  {
+   "id": "9c30bb5e-8da4-508c-a4df-e12a6840d49e",
+   "name": "PDF-Anhänge",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1200,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"PDF-Anhänge\": one item per invoice file (PDF, XML or image) in the new mails.\nconst isDoc = a => /(pdf|xml|png|jpe?g|tiff?)$/i.test(a.ContentType) || /\\.(pdf|xml|png|jpe?g|tiff?)$/i.test(a.FileName);\nreturn $input.all().flatMap(({ json: m }) =>\n  (m.Attachments || []).filter(isDoc).map(a => ({\n    json: {\n      message_id: m.MessageID, mailpit_id: m.ID, part_id: a.PartID, filename: a.FileName,\n      from_email: m.From.Address, from_name: m.From.Name, subject: m.Subject, text: m.Text,\n    },\n  })),\n);"
+   }
+  },
+  {
+   "id": "32f552fd-5b7b-553b-b61d-51c1c8c166df",
+   "name": "An Prüfung übergeben",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1400,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/eingangsrechnung",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json) }}"
+   }
+  },
+  {
+   "id": "f6543fa6-a36d-5d87-bb2a-8af32c083cd2",
+   "name": "Als gelesen markieren",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1600,
+    300
+   ],
+   "parameters": {
+    "method": "PUT",
+    "url": "http://mailpit:8025/api/v1/messages",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({IDs: [$('PDF-Anhänge').item.json.mailpit_id], Read: true}) }}",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Jede Minute": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen lesen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Postfach abrufen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Postfach abrufen": {
+   "main": [
+    [
+     {
+      "node": "Neue Rechnungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Neue Rechnungen": {
+   "main": [
+    [
+     {
+      "node": "E-Mail lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "E-Mail lesen": {
+   "main": [
+    [
+     {
+      "node": "PDF-Anhänge",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PDF-Anhänge": {
+   "main": [
+    [
+     {
+      "node": "An Prüfung übergeben",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "An Prüfung übergeben": {
+   "main": [
+    [
+     {
+      "node": "Als gelesen markieren",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ },
+ "pinData": {}
+}

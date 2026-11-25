@@ -1,0 +1,21 @@
+# Runs on every push: the unit tests of the fixed rules, and a check that workflows/*.json match their sources.
+name: checks
+on: [push, pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests (workflows/src/rules)
+        run: node --test test/rules.test.mjs
+      - name: Workflow files are built from workflows/src
+        run: |
+          python3 build_workflows.py
+          python3 build_eingangsrechnung.py
+          git diff --exit-code workflows/

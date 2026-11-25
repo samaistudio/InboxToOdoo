@@ -1,0 +1,225 @@
+{
+ "id": "rwPosteingang002",
+ "name": "Reklamation: Posteingang",
+ "nodes": [
+  {
+   "id": "b76c40ba-a65d-5194-873d-be5bee0fdabb",
+   "name": "Jede Minute",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 1
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "cb511de4-079d-58a9-b04c-f434c2da1f6e",
+   "name": "Einstellungen lesen",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    220,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "e2f20589-f121-587c-9e0e-58b72b7cf5a3",
+   "name": "Einstellungen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    440,
+    300
+   ],
+   "parameters": {
+    "operation": "fromJson",
+    "options": {}
+   }
+  },
+  {
+   "id": "adb1e5e5-895f-53f2-baf3-c371a54e626a",
+   "name": "Postfach abrufen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    660,
+    300
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "http://mailpit:8025/api/v1/messages?limit=50",
+    "options": {
+     "timeout": 120000
+    }
+   }
+  },
+  {
+   "id": "2e4e2d32-2edf-506d-a172-0e940584ae10",
+   "name": "Neue Reklamationen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    880,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Neue Reklamationen\": unread mails to the service mailbox.\nconst s = $('Einstellungen').first().json.data;\nconst msgs = ($json.messages || []).filter(m => !m.Read && (m.To || []).some(t => t.Address.toLowerCase() === s.service_email));\nreturn msgs.map(m => ({ json: { ID: m.ID, MessageID: m.MessageID } }));"
+   }
+  },
+  {
+   "id": "b0066626-2596-586a-8182-680a9808d311",
+   "name": "E-Mail lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1100,
+    300
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=http://mailpit:8025/api/v1/message/{{ $json.ID }}",
+    "options": {
+     "timeout": 120000
+    }
+   }
+  },
+  {
+   "id": "6c36b91d-13ec-5271-86e2-6a8aed40f679",
+   "name": "An Reklamation übergeben",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1320,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/reklamation",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({message_id: $json.MessageID, from_email: $json.From.Address, from_name: $json.From.Name, subject: $json.Subject, text: $json.Text}) }}"
+   }
+  },
+  {
+   "id": "f6543fa6-a36d-5d87-bb2a-8af32c083cd2",
+   "name": "Als gelesen markieren",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1540,
+    300
+   ],
+   "parameters": {
+    "method": "PUT",
+    "url": "http://mailpit:8025/api/v1/messages",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({IDs: [$('E-Mail lesen').item.json.ID], Read: true}) }}",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Jede Minute": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen lesen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Postfach abrufen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Postfach abrufen": {
+   "main": [
+    [
+     {
+      "node": "Neue Reklamationen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Neue Reklamationen": {
+   "main": [
+    [
+     {
+      "node": "E-Mail lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "E-Mail lesen": {
+   "main": [
+    [
+     {
+      "node": "An Reklamation übergeben",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "An Reklamation übergeben": {
+   "main": [
+    [
+     {
+      "node": "Als gelesen markieren",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ },
+ "pinData": {}
+}

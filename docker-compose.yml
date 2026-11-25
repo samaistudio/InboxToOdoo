@@ -1,0 +1,64 @@
+# InboxToOdoo: everything in one file. Start with ./install.sh (first time) or `docker compose up -d`.
+#   odoo + db   Odoo 18 Community with PostgreSQL               http://localhost:8069
+#   n8n         the workflows                                      http://localhost:5678
+#   mailpit     local test mailbox with a web inbox               http://localhost:8025
+#   docreader   recognises e-invoices, reads scans with OCR
+#   mock-llm    stand-in AI for demos (switch to a real one in the settings)
+# Image versions are pinned to the ones the demo was tested with. All ports are bound to 127.0.0.1 only. Passwords come from .env.local (created by install.sh).
+name: inboxtoodoo
+services:
+  db:
+    image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-odoo-local-only}
+    volumes: [db-data:/var/lib/postgresql/data]
+  odoo:
+    image: odoo:18@sha256:0bd79cf07f59105c5697667c2241b86447e99c6adb036200df0e4e295785bdf3   # Odoo 18.0-20261112
+    depends_on: [db]
+    ports: ["127.0.0.1:8069:8069"]
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: ${DB_PASSWORD:-odoo-local-only}
+    volumes: [odoo-data:/var/lib/odoo]
+  n8n:
+    image: n8nio/n8n:2.49.5
+    depends_on: [odoo]
+    ports: ["127.0.0.1:5678:5678"]
+    environment:
+      GENERIC_TIMEZONE: Europe/Berlin
+      TZ: Europe/Berlin
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_RESTRICT_FILE_ACCESS_TO: /files
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      WEBHOOK_URL: http://localhost:5678/
+    env_file: [.env.local]
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./data:/files/data
+      - ./prompts:/files/prompts:ro
+      - ./workflows:/files/workflows:ro
+  mailpit:
+    image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
+    ports: ["127.0.0.1:8025:8025", "127.0.0.1:1025:1025"]
+    environment:
+      MP_DATABASE: /data/mailpit.db   # keeps the test inbox when the container is recreated
+    volumes: [mailpit-data:/data]
+  docreader:
+    build: ./docreader
+    ports: ["127.0.0.1:8098:8098"]
+  mock-llm:
+    image: python:3.12-slim@sha256:a0e2dd78cc679ddfffea960fe45ecfcff9ac2f68d67917a0edfcde5c2100151b
+    command: python /app/server.py
+    volumes: ["./mock-llm:/app"]
+    ports: ["127.0.0.1:8099:8099"]
+volumes:
+  db-data:
+  odoo-data:
+  n8n-data:
+  mailpit-data:

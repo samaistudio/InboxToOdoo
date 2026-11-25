@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InboxToOdoo</title>
+<meta name="description" content="Invoice and complaint automation for Odoo: reads incoming e-mails, checks them against Odoo with fixed rules, prepares the booking and waits for one click from a person. A portfolio project by Sam Zeidi.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">InboxToOdoo</a>
+  <nav><a class="hide-s" href="#how">How it works</a><a href="tutorial.html">Walkthrough</a><a href="https://github.com/samaistudio/InboxToOdoo">Code</a><a href="#about">Contact</a></nav>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <h1>Supplier invoice and complaint automation for Odoo</h1>
+    <p class="lead">Reads incoming e-mails, checks them against Odoo with fixed rules, prepares the booking and waits for one click from a person. Tested end to end with 12 supplier invoices and 8 customer complaints, using a stand-in AI with prepared answers; the rules, Odoo bookings and mails are real.</p>
+    <div class="actions"><a class="btn primary" href="tutorial.html">See the walkthrough</a><a class="btn" href="https://github.com/samaistudio/InboxToOdoo">Code on GitHub</a><a class="btn" href="#video">Watch the video</a></div>
+    <p class="meta">Portfolio project by Sam Zeidi · demo company Rheinmark Handels GmbH (fictional) · runs locally on Odoo 18 Community and n8n</p>
+  </div>
+
+  <div class="mat hero-shot">
+    <picture><source media="(max-width: 640px)" srcset="assets/hero-mobile.png"><img src="assets/tut-3-invoice.png" width="760" alt="Approval e-mail for an invoice from Lichtwerk Elektro AG: one price is 7.2 % above the purchase order. The line table shows ordered, delivered and invoiced quantities; only the price cell that breaks the rule is marked."></picture>
+    <div class="more"><span>The approval e-mail Accounts receives for an invoice with a price difference.</span><a href="tutorial.html#step-3">See the whole mail</a></div>
+  </div>
+
+  <section>
+    <h2>What it does</h2>
+    <p class="sub">Two automations for a small wholesale business. People keep working where they already are: in their mailbox and in Odoo.</p>
+    <div class="cols">
+      <div>
+        <h3>Supplier invoices</h3>
+        <ul class="plain">
+          <li>Reads XRechnung and ZUGFeRD through Odoo's own importer, PDFs with AI, paper scans with OCR first</li>
+          <li>Matches every line against purchase order and goods receipt (3-way match)</li>
+          <li>Stops duplicates, unknown suppliers and changed bank accounts</li>
+          <li>Drafts the vendor bill and, on a difference, a query to the supplier</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Customer complaints</h3>
+        <ul class="plain">
+          <li>Finds the order, the product and the delivery date in Odoo</li>
+          <li>Decides by rule: replacement, credit note, refusal outside warranty, or a question back</li>
+          <li>Prepares the replacement order or credit note as a draft in Odoo</li>
+          <li>Writes the reply in German or US business style and checks it for AI phrasing</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="sub">The AI only reads and writes. Fixed rules decide, the arithmetic is exact, and nothing is booked or sent before a person clicks.</p>
+    <div class="flow">
+      <h3>Supplier invoices</h3>
+      <ol class="steps">
+        <li><b>Invoice e-mail</b><span>PDF, XRechnung, ZUGFeRD or a scan arrives in the invoice mailbox</span></li>
+        <li><b>Read</b><span>E-invoices by Odoo itself, without AI. PDFs by the AI, scans by OCR first</span></li>
+        <li><b>Check and match</b><span>Sums, VAT ID, IBAN, duplicates, bank account; order, receipt and invoice line by line</span></li>
+        <li class="human"><b>A person clicks</b><span>Book, send the drafted query to the supplier, or discard</span></li>
+      </ol>
+    </div>
+    <div class="flow">
+      <h3>Customer complaints</h3>
+      <ol class="steps">
+        <li><b>Customer e-mail</b><span>Arrives in the service mailbox, in German or English</span></li>
+        <li><b>AI reads it</b><span>Order number, product, what went wrong, what the customer wants</span></li>
+        <li><b>Rules decide</b><span>Warranty for business or private customers; draft in Odoo; reply written and style-checked</span></li>
+        <li class="human"><b>A person clicks</b><span>Approve: book and send. Reject: cancel the draft</span></li>
+      </ol>
+    </div>
+    <p class="muted" style="margin:0;max-width:760px">Everything runs on one machine: n8n for the workflows, Odoo 18 Community, a local mailbox and OCR. The AI is a setting: a local model, a cloud provider, or the AI key already set up in Odoo. With a local model, no customer or supplier data leaves the machine.</p>
+  </section>
+
+  <section>
+    <h2>Built in n8n and Odoo</h2>
+    <p class="sub">Real screens from the running demo, not mock-ups.</p>
+    <div class="build">
+      <div>
+        <div class="label"><h3>Where the person comes in</h3><span>Build the approval mail, send it, wait for the click, then act in Odoo</span></div>
+        <div class="mat" style="padding:16px"><img class="shot" src="assets/n8n-approval-detail.jpg" width="1100" height="350" alt="Detail of the n8n workflow: Freigabe-Mail bauen, Freigabe anfragen, Auf Freigabe warten, Abschluss vorbereiten, Odoo-Aktion? and In Odoo ausführen. The workflow pauses at 'Auf Freigabe warten' until a person clicks a button in the mail."></div>
+        <p class="wf-more">Part of the invoice workflow (48 steps in n8n). <a href="assets/n8n-invoice-workflow.jpg">Open the whole workflow</a> <span class="muted">(one wide image)</span></p>
+      </div>
+      <div>
+        <div class="label"><h3>The draft vendor bill in Odoo, linked to purchase order P00002</h3><span>Odoo's interface runs in English here; the company data is German</span></div>
+        <div class="mat" style="padding:16px"><img class="shot" src="assets/odoo-draft-bill.jpg" width="1440" height="850" alt="Draft bill LW-50231 in Odoo for Lichtwerk Elektro AG, with a link to purchase order P00002, the two invoice lines, the total of 1,839.74 euros and the note that it was captured automatically from the PDF."></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tested with 20 documents</h2>
+    <p class="sub">Every case was run end to end: from the mailbox to the approval mail to the result in Odoo. In these runs the AI step was a local stand-in that returns prepared answers; Odoo, the rules, OCR, the mails and the bookings ran for real. Not yet run with a real model. The table shows the expected verdicts. An earlier run gave all twelve; in the run behind the screenshots three differ because the invoices were checked in parallel (see Limits).</p>
+    <div class="tables">
+      <table>
+        <tr><th>Supplier invoice</th><th>Result</th></tr>
+        <tr><td>Matches order and receipt</td><td class="v"><span class="tag ok">Booked</span></td></tr>
+        <tr><td>Price 7.2 % above the order (tolerance 2 %)</td><td class="v"><span class="tag look">Query</span></td></tr>
+        <tr><td>30 invoiced, 20 received</td><td class="v"><span class="tag look">Query</span></td></tr>
+        <tr><td>Same invoice number again</td><td class="v"><span class="tag stop">Stopped</span></td></tr>
+        <tr><td>"New bank account"</td><td class="v"><span class="tag stop">Stopped</span></td></tr>
+        <tr><td>No order number: matched to the only fitting open order</td><td class="v"><span class="tag ok">Booked</span></td></tr>
+        <tr><td>Printed total 10 € too high</td><td class="v"><span class="tag look">Query</span></td></tr>
+        <tr><td>Supplier not in Odoo</td><td class="v"><span class="tag stop">Stopped</span></td></tr>
+        <tr><td>XRechnung (XML), read by Odoo without AI</td><td class="v"><span class="tag ok">Booked</span></td></tr>
+        <tr><td>ZUGFeRD PDF, price 2.8 % above the order</td><td class="v"><span class="tag look">Query</span></td></tr>
+        <tr><td>Scanned paper invoice, rotated and noisy</td><td class="v"><span class="tag ok">Booked</span></td></tr>
+        <tr><td>The same XRechnung sent a second time</td><td class="v"><span class="tag stop">Stopped</span></td></tr>
+      </table>
+      <table>
+        <tr><th>Customer complaint</th><th>Result</th></tr>
+        <tr><td>Drill does not charge (business customer)</td><td class="v"><span class="tag ok">Replacement</span></td></tr>
+        <tr><td>Display cracked on arrival, wants money back: credit of 141.61 €</td><td class="v"><span class="tag ok">Credit</span></td></tr>
+        <tr><td>Wrong item delivered</td><td class="v"><span class="tag ok">Replacement</span></td></tr>
+        <tr><td>Drill broken after 3 years (warranty 24 months), paid repair offered</td><td class="v"><span class="tag stop">Refused</span></td></tr>
+        <tr><td>Flickering light, written in English: reply in US English</td><td class="v"><span class="tag ok">Replacement</span></td></tr>
+        <tr><td>No order number, writes "du": order found by sender address; rejected in approval, draft cancelled</td><td class="v"><span class="tag ok">Replacement</span></td></tr>
+        <tr><td>Vague complaint, unknown sender: asks for order and product</td><td class="v"><span class="tag look">Question</span></td></tr>
+        <tr><td>Two scratched safety glasses: credit of 23.56 €. The prepared first reply breaks the style rules on purpose; the style check caught it and the corrected reply was used</td><td class="v"><span class="tag ok">Credit</span></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Design decisions</h2>
+    <ul class="plain decisions">
+      <li><b>Rules decide, the AI only reads and writes.</b> A model can be confidently wrong; sums, check digits, tolerances and the warranty are plain arithmetic that gives the same answer every time.</li>
+      <li><b>Approval happens in the mailbox.</b> Accounts and customer service already work there, so there is no new app to learn and every decision arrives with its reasons.</li>
+      <li><b>E-invoices go through Odoo's own importer.</b> XRechnung and ZUGFeRD carry structured data; Odoo Community already reads them, so nothing is guessed and nothing is rebuilt.</li>
+      <li><b>A changed bank account is a hard stop.</b> A "new IBAN" e-mail is one of the most common invoice frauds, so the invoice is not even drafted, and the mail says to call a number already known.</li>
+    </ul>
+  </section>
+
+  <section id="video">
+    <h2>The video</h2>
+    <p class="sub">43 seconds, no sound. The same flow as the walkthrough.</p>
+    <video src="assets/inboxtoodoo.mp4" poster="assets/poster.png" controls playsinline preload="none"></video>
+  </section>
+
+  <section>
+    <h2>Limits of this demo</h2>
+    <ul class="plain">
+      <li>A fictional company, tested with 8 complaints and 12 invoices. The AI step was a local stand-in that returns prepared answers; local models (Ollama, LM Studio) and cloud keys are one setting away but have not been tested with these cases.</li>
+      <li>When several invoices arrive in the same minute, they are checked in parallel. In the run behind the screenshots, three verdicts differ from the expected ones above: LW-50288 found two open orders instead of one, and the original and the copy of RE-2026-1187 swapped roles. <code>test/run_invoices.py</code> sends them one at a time and compares every verdict.</li>
+      <li>The approval buttons are signed links that act on a click (HTTP GET). Mail security scanners that open links could trigger them, and the mail does not record who clicked. A real setup would put a confirmation page with a POST behind each button and log the approver.</li>
+      <li>Odoo errors are not checked after each call yet, and the calls run as the Odoo admin. A real setup needs a dedicated integration user with an API key and a run that stops on any Odoo error.</li>
+      <li>The mailbox is local. A real mailbox (IMAP, Microsoft 365, Gmail) means swapping the inbox step in n8n.</li>
+      <li>The e-invoice test files follow the standards' structure but were not run through the official validators.</li>
+    </ul>
+  </section>
+
+  <section id="about">
+    <h2>About this project</h2>
+    <div class="about">
+      <div>
+        <p style="margin-top:0">InboxToOdoo is a portfolio project by <b>Sam Zeidi</b>, Information Systems student (Wirtschaftsinformatik) at Universität zu Köln. I am looking for a Werkstudent role in AI automation, business processes or Odoo in and around Cologne.</p>
+        <p class="muted" style="margin-bottom:0">What I designed and decided: the process (which checks run, when the automation stops, what a person has to approve), the rules and tolerances, the Odoo demo company with its orders and deliveries, the 20 test cases, and the approval mails and forms.</p>
+      </div>
+      <div class="card">
+        <p><b>Live demo or code walkthrough on request</b></p>
+        <p class="muted">Code: <a href="https://github.com/samaistudio/InboxToOdoo">github.com/samaistudio/InboxToOdoo</a>. Clone it and run <code>./install.sh --demo</code> (needs Docker and Python 3): Odoo 18 Community, n8n, a test mailbox and OCR start locally.</p>
+        <p><a class="btn primary" href="mailto:contact.samzeidi@gmail.com?subject=InboxToOdoo">contact.samzeidi@gmail.com</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  Project by Sam Zeidi, Köln · contact.samzeidi@gmail.com · <a href="https://github.com/samaistudio/InboxToOdoo">Code on GitHub</a> · All demo companies, people and numbers are fictional · Built on Odoo 18 Community and n8n, not affiliated with Odoo S.A.
+</div></footer>
+</body>
+</html>

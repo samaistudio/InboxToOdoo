@@ -1,0 +1,1515 @@
+{
+ "id": "rwRechnung004",
+ "name": "Eingangsrechnung: Prüfung",
+ "nodes": [
+  {
+   "id": "797f28e7-b7ec-55c2-9fc6-e75c357b58d4",
+   "name": "Rechnung eingegangen",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "eingangsrechnung",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "eingangsrechnung"
+  },
+  {
+   "id": "cb511de4-079d-58a9-b04c-f434c2da1f6e",
+   "name": "Einstellungen lesen",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    200,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "e2f20589-f121-587c-9e0e-58b72b7cf5a3",
+   "name": "Einstellungen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    400,
+    300
+   ],
+   "parameters": {
+    "operation": "fromJson",
+    "options": {}
+   }
+  },
+  {
+   "id": "150b0d40-4646-5bac-9daa-b847311f4586",
+   "name": "Stilregeln datei",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    600,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/prompts/EMAIL_STYLE.md",
+    "options": {}
+   }
+  },
+  {
+   "id": "7522297c-9c0b-5bdb-86a4-014ab05f521e",
+   "name": "Stilregeln lesen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    800,
+    300
+   ],
+   "parameters": {
+    "operation": "text",
+    "options": {}
+   }
+  },
+  {
+   "id": "2f7f5842-4f02-5bd9-90c5-c5275c068838",
+   "name": "Dokument holen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1000,
+    300
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=http://mailpit:8025/api/v1/message/{{ $('Rechnung eingegangen').first().json.body.mailpit_id }}/part/{{ $('Rechnung eingegangen').first().json.body.part_id }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "c1f6dd94-ddfa-50db-b8fa-5c62bc19ed27",
+   "name": "Dokument erkennen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1200,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "=http://docreader:8098/read?filename={{ encodeURIComponent($('Rechnung eingegangen').first().json.body.filename || '') }}",
+    "sendBody": true,
+    "contentType": "binaryData",
+    "inputDataFieldName": "data",
+    "options": {
+     "timeout": 300000
+    }
+   }
+  },
+  {
+   "id": "bc9324c9-12a3-5494-99bc-19eca111ff46",
+   "name": "Kontext",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1400,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Kontext\": collects the mail, the settings, the style guide and the document text, and writes the\n// prompt for the AI (used only for PDFs and scans; e-invoices are read by Odoo).\nconst body = $('Rechnung eingegangen').first().json.body || {};\nconst settings = { ...($('Einstellungen').first().json.data || {}) };\nconst style = $('Stilregeln lesen').first().json.data || '';\nconst doc = $('Dokument erkennen').first().json;\nconst pdfText = String(doc.text || '').slice(0, 12000);\nconst id = String(body.message_id || 'web-' + Date.now()).replace(/[<>]/g, '');\nconst system = [\n  'TASK: invoice_extract',\n  'Du liest eine Eingangsrechnung (Text aus einem PDF) und gibst NUR ein JSON-Objekt zurück, ohne Text davor oder danach.',\n  'Felder: supplier_name, supplier_vat (USt-IdNr. ohne Leerzeichen), supplier_iban (ohne Leerzeichen), invoice_number, invoice_date (YYYY-MM-DD),',\n  'due_date (YYYY-MM-DD), po_ref (unsere Bestellnummer, z. B. \"P00001\", sonst null), currency, lines (Liste aus {code, description, quantity, unit_price, line_total}),',\n  'net_total, vat_rate (z. B. 19), vat_amount, gross_total, note (Hinweise des Lieferanten, sonst null).',\n  'Zahlen als Zahl mit Punkt (1234.5). Erfinde nichts: was nicht im Dokument steht, ist null.',\n].join('\\n');\nconst source = doc.source === 'ocr' ? 'per OCR aus einem Scan, kann Lesefehler enthalten' : 'aus dem PDF';\nconst user =\n  `MESSAGE-ID: ${id}\\nAbsender: ${body.from_name || ''} <${body.from_email || ''}>\\nBetreff: ${body.subject || ''}\\nDatei: ${body.filename || ''}\\n\\n` +\n  `--- Text des Dokuments (${source}) ---\\n${pdfText}`;\nreturn [{ json: { id, mail: body, settings, style, doc, pdfChars: pdfText.length, extractPrompt: { system, user } } }];"
+   }
+  },
+  {
+   "id": "aa1cfbab-e84b-54c5-af36-6791cf164479",
+   "name": "Odoo Login",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1600,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"common\", method: \"login\", args: [$env.ODOO_DB, $env.ODOO_USER, $env.ODOO_PASSWORD]} }) }}"
+   }
+  },
+  {
+   "id": "dc7c2fa9-7543-54f4-97a8-130534d9f803",
+   "name": "KI aus Odoo lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1800,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"ir.config_parameter\", \"search_read\", [[[\"key\", \"in\", $(\"Kontext\").first().json.settings.odoo_ai_params || []]]], {fields: [\"key\", \"value\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "170930ed-4da5-58d2-b1e8-7851076f0957",
+   "name": "E-Rechnung?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    2000,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "E-Rechnung?",
+       "leftValue": "={{ $('Kontext').first().json.doc.source === 'einvoice' }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "c601d185-a30c-52bb-834b-a4831e6a0687",
+   "name": "Datei für Odoo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2240,
+    80
+   ],
+   "parameters": {
+    "jsCode": "return [{ json: { b64: $('Dokument erkennen').first().json.b64 } }];"
+   }
+  },
+  {
+   "id": "03c820e3-6b3c-54a7-b8fc-ed792e31de15",
+   "name": "Einkaufsjournal",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2440,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"account.journal\", \"search\", [[[\"type\", \"=\", \"purchase\"]]], {limit: 1}]} }) }}"
+   }
+  },
+  {
+   "id": "6aed910f-094c-5cd1-9063-c0816b1e9034",
+   "name": "In Odoo hochladen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2640,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"ir.attachment\", \"create\", [{name: $(\"Rechnung eingegangen\").first().json.body.filename || \"e-rechnung\", datas: $(\"Datei für Odoo\").first().json.b64}], {}]} }) }}"
+   }
+  },
+  {
+   "id": "974b8372-25d5-5c06-9e92-91819a4c76a7",
+   "name": "Odoo liest E-Rechnung",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2840,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"account.journal\", \"create_document_from_attachment\", [$(\"Einkaufsjournal\").first().json.result, [$(\"In Odoo hochladen\").first().json.result]], {}]} }) }}"
+   }
+  },
+  {
+   "id": "26e71dcd-eb9f-5a5b-8303-9d44dfb36e69",
+   "name": "Beleg lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3040,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"account.move\", \"read\", [[$(\"Odoo liest E-Rechnung\").first().json.result.res_id]], {fields: [\"partner_id\", \"ref\", \"invoice_date\", \"invoice_date_due\", \"amount_untaxed\", \"amount_tax\", \"amount_total\", \"partner_bank_id\", \"invoice_origin\", \"invoice_line_ids\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "8b13788a-373f-5ed5-8f81-1f12b98c5ea5",
+   "name": "Belegzeilen lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3240,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"account.move.line\", \"read\", [(($(\"Beleg lesen\").first().json.result||[])[0]||{invoice_line_ids:[]}).invoice_line_ids], {fields: [\"product_id\", \"name\", \"quantity\", \"price_unit\", \"price_subtotal\", \"purchase_line_id\", \"display_type\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "a4f21433-a90c-5eaa-a618-817eedb566b3",
+   "name": "Belegpartner lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3440,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"res.partner\", \"read\", [[((($(\"Beleg lesen\").first().json.result||[])[0]||{}).partner_id||[0])[0]]], {fields: [\"name\", \"vat\", \"create_date\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "4ce770b2-daf5-5c99-b344-a6c1f53db821",
+   "name": "Bankkonto lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3640,
+    80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"res.partner.bank\", \"read\", [[((($(\"Beleg lesen\").first().json.result||[])[0]||{}).partner_bank_id||[0])[0]]], {fields: [\"acc_number\", \"create_date\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "7dcd5f8f-bfa9-52c2-b8b4-59949113c7f4",
+   "name": "E-Rechnung übernehmen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3840,
+    80
+   ],
+   "parameters": {
+    "jsCode": "// Node \"E-Rechnung übernehmen\": Odoo has already read the e-invoice (module account_edi_ubl_cii);\n// its values are taken over unchanged. A supplier or bank account the importer created in the last\n// 10 minutes counts as new (see \"Limits\" in the README for what that means).\nconst c = $('Kontext').first().json;\nconst result = n => $(n).first().json.result || [];\nconst bill = result('Beleg lesen')[0] || {};\nconst lines = result('Belegzeilen lesen').filter(l => !l.display_type || l.display_type === 'product');\nconst partner = result('Belegpartner lesen')[0] || null;\nconst bank = result('Bankkonto lesen')[0] || null;\nconst fresh = d => d && Date.now() - new Date(String(d).replace(' ', 'T') + 'Z').getTime() < 10 * 60 * 1000;\nconst vatPct = bill.amount_untaxed ? Math.round((bill.amount_tax / bill.amount_untaxed) * 1000) / 10 : null;\nconst inv = {\n  supplier_name: partner ? partner.name : null,\n  supplier_vat: partner && partner.vat ? partner.vat.replace(/\\s/g, '').toUpperCase() : null,\n  supplier_iban: bank ? bank.acc_number.replace(/\\s/g, '').toUpperCase() : null,\n  bank_new: !!(bank && fresh(bank.create_date)),\n  partner_new: !!(partner && fresh(partner.create_date)),\n  invoice_number: bill.ref || null,\n  invoice_date: bill.invoice_date || null,\n  due_date: bill.invoice_date_due || null,\n  po_ref: bill.invoice_origin || null,\n  currency: 'EUR',\n  lines: lines.map(l => ({\n    code: ((l.product_id && l.product_id[1]) || '').match(/\\[(.*?)\\]/)?.[1] || null,\n    description: l.name, quantity: l.quantity, unit_price: l.price_unit, line_total: l.price_subtotal,\n    move_line_id: l.id, linked_po_line: l.purchase_line_id ? l.purchase_line_id[0] : null,\n  })),\n  net_total: bill.amount_untaxed, vat_rate: vatPct, vat_amount: bill.amount_tax, gross_total: bill.amount_total, note: null,\n};\nconst syntax = { zugferd: 'ZUGFeRD', cii: 'XRechnung CII' }[c.doc.syntax] || 'XRechnung UBL';\nreturn [{ json: { ...c, inv, importedBillId: bill.id || null, readBy: `E-Rechnung (${syntax}), von Odoo selbst eingelesen, ohne KI` } }];"
+   }
+  },
+  {
+   "id": "ad4c81f9-7468-54a7-9513-2b230ec45a7e",
+   "name": "Lese-Anfrage",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2240,
+    520
+   ],
+   "parameters": {
+    "jsCode": "// One function builds the HTTP request for whichever AI the company chose in the settings.\n// Keys come from the environment (.env.local) or, for \"odoo\", from the AI keys already stored in Odoo.\n// Every provider gets the same prompts; only the request format differs (OpenAI, Anthropic or Azure).\nconst PROVIDERS = {\n  mock:      { label: 'Testmodell (offline)', url: 'http://mock-llm:8099/v1', fmt: 'openai', local: true },\n  ollama:    { label: 'Ollama (lokal)', url: 'http://host.docker.internal:11434/v1', fmt: 'openai', local: true, model: 'qwen2.5:7b' },\n  lmstudio:  { label: 'LM Studio (lokal)', url: 'http://host.docker.internal:1234/v1', fmt: 'openai', local: true },\n  openai:    { label: 'OpenAI', url: 'https://api.openai.com/v1', fmt: 'openai', env: 'OPENAI_API_KEY', model: 'gpt-4o-mini' },\n  anthropic: { label: 'Anthropic Claude', url: 'https://api.anthropic.com/v1', fmt: 'anthropic', env: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5' },\n  gemini:    { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', fmt: 'openai', env: 'GEMINI_API_KEY',\n               model: 'gemini-2.5-flash' },\n  mistral:   { label: 'Mistral', url: 'https://api.mistral.ai/v1', fmt: 'openai', env: 'MISTRAL_API_KEY', model: 'mistral-small-latest' },\n  azure:     { label: 'Azure OpenAI', url: '', fmt: 'azure', env: 'AZURE_OPENAI_API_KEY' },\n  custom:    { label: 'Eigener Endpunkt', url: '', fmt: 'openai', env: 'LLM_API_KEY' },\n};\n\n// \"Wie in Odoo eingerichtet\": find an AI key among the Odoo system parameters listed in the settings\nfunction odooAiKey(s) {\n  const rows = ($('KI aus Odoo lesen').first().json.result || []).filter(r => r.value);\n  const prefer = s.odoo_ai_prefer || 'openai';\n  const kind = r => (/openai/i.test(r.key) ? 'openai' : /google|gemini/i.test(r.key) ? 'gemini' : /anthropic|claude/i.test(r.key) ? 'anthropic' : null);\n  const found = rows.map(r => ({ provider: kind(r), key: r.value, param: r.key })).filter(r => r.provider);\n  return found.find(r => r.provider === prefer) || found[0] || null;\n}\n\nfunction llmRequest(s, system, user, temperature) {\n  let p = s.llm_provider || 'mock', key = null, from = null;\n  if (p === 'odoo') {\n    const hit = odooAiKey(s);\n    if (!hit)\n      throw new Error(\n        'In Odoo ist kein KI-Schlüssel hinterlegt (gesucht: ' + (s.odoo_ai_params || []).join(', ') + '). ' +\n          'Bitte in den Einstellungen einen anderen KI-Anbieter wählen.',\n      );\n    p = hit.provider;\n    key = hit.key;\n    from = 'Odoo (' + hit.param + ')';\n  }\n  const P = PROVIDERS[p];\n  if (!P) throw new Error('Unbekannter KI-Anbieter: ' + p);\n  const base = String(s.llm_url || P.url).replace(/\\/+$/, '');\n  if (!base) throw new Error('Für ' + P.label + ' fehlt die Adresse (URL) in den Einstellungen.');\n  key = key || (P.env ? $env[P.env] || $env.LLM_API_KEY : null) || null;\n  if (P.env && !key) throw new Error('Für ' + P.label + ' fehlt der API-Schlüssel ' + P.env + ' in .env.local.');\n  const model = (from ? s.odoo_ai_model || P.model : s.llm_model) || P.model || 'local-model';\n  let url, body;\n  const headers = { 'Content-Type': 'application/json' };\n  if (P.fmt === 'anthropic') {\n    url = base + '/messages';\n    headers['x-api-key'] = key;\n    headers['anthropic-version'] = '2023-06-01';\n    body = { model, max_tokens: 1500, temperature, system, messages: [{ role: 'user', content: user }] };\n  } else {\n    url = P.fmt === 'azure'\n      ? `${base}/openai/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${s.azure_api_version || '2024-10-21'}`\n      : base + '/chat/completions';\n    if (key) {\n      if (P.fmt === 'azure') headers['api-key'] = key;\n      else headers['Authorization'] = 'Bearer ' + key;\n    }\n    body = { model, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };\n  }\n  return { url, headers, body, provider: p, label: P.label + (from ? ', Schlüssel aus ' + from : ''), model, local: !!P.local };\n}\n\n// Node \"Lese-Anfrage\": the HTTP request for the AI that reads a PDF or scan (llmRequest from shared/llm-request.js).\nconst c = $('Kontext').first().json;\nreturn [{ json: { ...c, llm: llmRequest(c.settings, c.extractPrompt.system, c.extractPrompt.user, 0) } }];"
+   }
+  },
+  {
+   "id": "f5bf03fe-1a4e-5d2d-b12d-a329613ed928",
+   "name": "KI liest Rechnung",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2440,
+    520
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.llm.url }}",
+    "sendHeaders": true,
+    "specifyHeaders": "json",
+    "jsonHeaders": "={{ JSON.stringify($json.llm.headers) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.llm.body) }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "id": "38a7acc1-b1b4-5b44-8218-8ce709acaf52",
+   "name": "KI-Antwort prüfen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    520
+   ],
+   "parameters": {
+    "jsCode": "// Reads the text out of an answer in OpenAI format (choices) or Anthropic format (content blocks).\nconst aiText = j => (j.choices?.[0]?.message?.content ?? (j.content || []).map(b => b.text || '').join('') ?? '');\n\n// Node \"KI-Antwort prüfen\": turns the AI's answer into numbers. Nothing is decided here; the checks come next.\nconst c = $('Lese-Anfrage').first().json;\nconst raw = aiText($json) || '';\nlet inv = {};\ntry {\n  inv = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));\n} catch (e) {\n  inv = { parse_error: raw.slice(0, 200) };\n}\nconst num = v => (v === null || v === undefined || v === '' ? null : Number(v));\ninv.lines = (inv.lines || []).map(l => ({\n  code: l.code || null, description: String(l.description || ''), quantity: num(l.quantity) || 0,\n  unit_price: num(l.unit_price) || 0, line_total: num(l.line_total),\n}));\nfor (const k of ['net_total', 'vat_rate', 'vat_amount', 'gross_total']) inv[k] = num(inv[k]);\ninv.supplier_vat = inv.supplier_vat ? String(inv.supplier_vat).replace(/\\s/g, '').toUpperCase() : null;\ninv.supplier_iban = inv.supplier_iban ? String(inv.supplier_iban).replace(/\\s/g, '').toUpperCase() : null;\nconst readBy = c.doc.source === 'ocr' ? 'Scan, per OCR gelesen, KI hat die Werte erkannt' : 'PDF-Text, KI hat die Werte erkannt';\nreturn [{ json: { ...c, inv, readBy } }];"
+   }
+  },
+  {
+   "id": "54e21f4f-63fd-5667-a48a-7ddc645d43aa",
+   "name": "Prüfungen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4080,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Fixed invoice rules. None of them depends on the AI: they only do arithmetic on the values that were read.\n// The builder puts this file in front of the \"Prüfungen\" and \"Abgleich\" Code nodes;\n// test/rules.test.mjs tests the same functions.\n\n// 2-decimal rounding and the 2-cent allowance used for every sum check\nconst r2 = v => Math.round(v * 100) / 100;\nconst near = (a, b) => a !== null && b !== null && Math.abs(a - b) <= 0.02;\n\n// 1234.5 -> \"1.234,50 €\"; null -> \"–\"\nconst eu = v =>\n  v === null || v === undefined\n    ? '–'\n    : Number(v).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ' €';\n\n// German VAT ID (USt-IdNr.): check digit after ISO 7064 MOD 11,10. Other EU countries: format only.\nfunction vatIdOk(v) {\n  if (!/^DE\\d{9}$/.test(v)) return /^[A-Z]{2}[0-9A-Z]{2,13}$/.test(v);\n  let p = 10;\n  for (const d of v.slice(2, 10)) {\n    const s = (Number(d) + p) % 10 || 10;\n    p = (2 * s) % 11;\n  }\n  const check = 11 - p === 10 ? 0 : 11 - p;\n  return check === Number(v[10]);\n}\n\n// IBAN checksum (ISO 13616, mod 97 = 1). Expects the IBAN without spaces, upper case.\nfunction ibanOk(iban) {\n  const s = iban.slice(4) + iban.slice(0, 4);\n  let r = 0;\n  for (const ch of s) {\n    const v = parseInt(ch, 36);\n    r = Number(String(r) + String(v)) % 97;\n  }\n  return r === 1;\n}\n\n// Price on the invoice compared with the purchase order, in percent (+7.2 = 7.2 % more expensive)\nconst priceDiffPct = (price, orderPrice) => (orderPrice ? ((price - orderPrice) / orderPrice) * 100 : 0);\nconst priceOutsideTolerance = (price, orderPrice, tolPct) => Math.abs(priceDiffPct(price, orderPrice)) > tolPct;\n\n// More billed than delivered and not yet billed? (1e-9 absorbs floating point noise)\nconst qtyOverOpen = (qty, open) => qty > open + 1e-9;\n\n// Node \"Prüfungen\": the fixed checks on the invoice itself (sums, VAT, VAT ID, IBAN, records the importer just created).\n// Uses r2, near, eu, vatIdOk and ibanOk from rules/invoice-rules.js.\nconst c = $json, inv = c.inv;\nconst checks = [];\nconst warn = text => checks.push({ level: 'warn', text });\nconst block = (text, extra) => checks.push({ level: 'block', text, ...extra });\n\nif (inv.parse_error) block('Rechnung konnte nicht gelesen werden.');\n\n// each line: quantity × price = line total\ninv.lines.forEach((l, i) => {\n  const calc = r2(l.quantity * l.unit_price);\n  if (l.line_total !== null && !near(calc, l.line_total))\n    warn(`Position ${i + 1}: Menge × Preis ergibt ${eu(calc)}, nicht ${eu(l.line_total)}.`);\n});\n\n// lines add up to the net total, VAT is right, net + VAT = gross\nconst sumLines = r2(inv.lines.reduce((s, l) => s + l.quantity * l.unit_price, 0));\nif (inv.net_total !== null && !near(sumLines, inv.net_total))\n  warn(`Summe der Positionen ${eu(sumLines)} weicht vom Nettobetrag ${eu(inv.net_total)} ab.`);\nif (inv.net_total !== null && inv.vat_rate !== null && inv.vat_amount !== null) {\n  const vat = r2((inv.net_total * inv.vat_rate) / 100);\n  if (!near(vat, inv.vat_amount))\n    warn(`Umsatzsteuer: ${inv.vat_rate} % von ${eu(inv.net_total)} sind ${eu(vat)}, auf der Rechnung ${eu(inv.vat_amount)}.`);\n}\nif (inv.net_total !== null && inv.vat_amount !== null && inv.gross_total !== null) {\n  const gross = r2(inv.net_total + inv.vat_amount);\n  if (!near(gross, inv.gross_total))\n    warn(`Rechenfehler: Netto ${eu(inv.net_total)} + USt ${eu(inv.vat_amount)} = ${eu(gross)}, auf der Rechnung steht ${eu(inv.gross_total)}.`);\n}\n\n// VAT ID and IBAN check digits\nif (!inv.supplier_vat) warn('Keine USt-IdNr. auf der Rechnung (Pflichtangabe nach § 14 UStG, oder Steuernummer).');\nelse if (!vatIdOk(inv.supplier_vat)) warn(`USt-IdNr. ${inv.supplier_vat} hat keine gültige Prüfziffer.`);\nif (inv.supplier_iban && !ibanOk(inv.supplier_iban)) block(`IBAN ${inv.supplier_iban} ist ungültig (Prüfsumme).`);\n\n// e-invoices: a supplier or bank account that Odoo's importer had to create is not a known one\nif (inv.partner_new)\n  block(`Lieferant \"${inv.supplier_name}\" wurde gerade erst beim Einlesen neu angelegt, ist also kein bekannter Lieferant.`);\nif (inv.bank_new)\n  block(\n    `Bankverbindung ${inv.supplier_iban} wurde beim Einlesen neu angelegt und war vorher nicht in Odoo. ` +\n      'Nicht per E-Mail klären, beim Lieferanten unter der bekannten Telefonnummer nachfragen.',\n    { fraud: true },\n  );\n\nreturn [{ json: { ...c, inv, checks } }];"
+   }
+  },
+  {
+   "id": "654c7b12-1df3-5c93-9b3b-aeae73e95b9f",
+   "name": "Lieferant suchen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4280,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"res.partner\", \"search_read\", [$(\"Prüfungen\").first().json.inv.supplier_vat ? [[\"vat\", \"=\", $(\"Prüfungen\").first().json.inv.supplier_vat]] : [[\"name\", \"ilike\", $(\"Prüfungen\").first().json.inv.supplier_name || \"###\"], [\"supplier_rank\", \">\", 0]]], {fields: [\"name\", \"vat\", \"email\", \"phone\"], limit: 1}]} }) }}"
+   }
+  },
+  {
+   "id": "01998a32-38ac-55d6-b8b6-d6a3744a1733",
+   "name": "Bankkonten lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4480,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"res.partner.bank\", \"search_read\", [[[\"partner_id\", \"=\", (($(\"Lieferant suchen\").first().json.result||[])[0]||{id:0}).id]]], {fields: [\"acc_number\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "d7c82683-4868-528a-9708-659039255b64",
+   "name": "Bestellungen suchen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4680,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"purchase.order\", \"search_read\", [[[\"partner_id\", \"=\", (($(\"Lieferant suchen\").first().json.result||[])[0]||{id:0}).id], [\"state\", \"in\", [\"purchase\", \"done\"]]]], {fields: [\"name\", \"partner_ref\", \"origin\", \"order_line\", \"invoice_status\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "5974bbc4-d26c-56f3-ab68-04143f146ec1",
+   "name": "Bestellpositionen lesen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4880,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"purchase.order.line\", \"search_read\", [[[\"order_id.partner_id\", \"=\", (($(\"Lieferant suchen\").first().json.result||[])[0]||{id:0}).id], [\"order_id.state\", \"in\", [\"purchase\", \"done\"]]]], {fields: [\"order_id\", \"name\", \"product_id\", \"product_qty\", \"qty_received\", \"qty_invoiced\", \"price_unit\", \"taxes_id\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "85091628-3a02-5e3a-a56f-92ecaa479d50",
+   "name": "Dubletten prüfen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5080,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, \"account.move\", \"search_read\", [[[\"move_type\", \"=\", \"in_invoice\"], [\"partner_id\", \"=\", (($(\"Lieferant suchen\").first().json.result||[])[0]||{id:0}).id], [\"ref\", \"=\", $(\"Prüfungen\").first().json.inv.invoice_number || \"###\"], [\"state\", \"!=\", \"cancel\"], [\"id\", \"!=\", $(\"Prüfungen\").first().json.importedBillId || 0]]], {fields: [\"name\", \"state\"]}]} }) }}"
+   }
+  },
+  {
+   "id": "7a33b120-4284-53f0-90a0-305a2bdadb59",
+   "name": "Abgleich",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5280,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Fixed invoice rules. None of them depends on the AI: they only do arithmetic on the values that were read.\n// The builder puts this file in front of the \"Prüfungen\" and \"Abgleich\" Code nodes;\n// test/rules.test.mjs tests the same functions.\n\n// 2-decimal rounding and the 2-cent allowance used for every sum check\nconst r2 = v => Math.round(v * 100) / 100;\nconst near = (a, b) => a !== null && b !== null && Math.abs(a - b) <= 0.02;\n\n// 1234.5 -> \"1.234,50 €\"; null -> \"–\"\nconst eu = v =>\n  v === null || v === undefined\n    ? '–'\n    : Number(v).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ' €';\n\n// German VAT ID (USt-IdNr.): check digit after ISO 7064 MOD 11,10. Other EU countries: format only.\nfunction vatIdOk(v) {\n  if (!/^DE\\d{9}$/.test(v)) return /^[A-Z]{2}[0-9A-Z]{2,13}$/.test(v);\n  let p = 10;\n  for (const d of v.slice(2, 10)) {\n    const s = (Number(d) + p) % 10 || 10;\n    p = (2 * s) % 11;\n  }\n  const check = 11 - p === 10 ? 0 : 11 - p;\n  return check === Number(v[10]);\n}\n\n// IBAN checksum (ISO 13616, mod 97 = 1). Expects the IBAN without spaces, upper case.\nfunction ibanOk(iban) {\n  const s = iban.slice(4) + iban.slice(0, 4);\n  let r = 0;\n  for (const ch of s) {\n    const v = parseInt(ch, 36);\n    r = Number(String(r) + String(v)) % 97;\n  }\n  return r === 1;\n}\n\n// Price on the invoice compared with the purchase order, in percent (+7.2 = 7.2 % more expensive)\nconst priceDiffPct = (price, orderPrice) => (orderPrice ? ((price - orderPrice) / orderPrice) * 100 : 0);\nconst priceOutsideTolerance = (price, orderPrice, tolPct) => Math.abs(priceDiffPct(price, orderPrice)) > tolPct;\n\n// More billed than delivered and not yet billed? (1e-9 absorbs floating point noise)\nconst qtyOverOpen = (qty, open) => qty > open + 1e-9;\n\n// Node \"Abgleich\": compares the invoice with Odoo (supplier, bank account, duplicates, purchase order, goods receipt)\n// and prepares the draft vendor bill. Uses eu, priceDiffPct, priceOutsideTolerance and qtyOverOpen from rules/invoice-rules.js.\nconst c = $('Prüfungen').first().json;\nconst s = c.settings, inv = c.inv, checks = [...c.checks];\nconst result = n => $(n).first().json.result || [];\nconst supplier = result('Lieferant suchen')[0] || null;\nconst banks = supplier ? result('Bankkonten lesen') : [];\nconst pos = supplier ? result('Bestellungen suchen') : [];\nconst poLines = supplier ? result('Bestellpositionen lesen') : [];\nconst dupes = supplier ? result('Dubletten prüfen') : [];\nconst tol = Number(s.inv_price_tolerance_pct ?? 2);\nconst warn = text => checks.push({ level: 'warn', text });\nconst block = (text, extra) => checks.push({ level: 'block', text, ...extra });\nconst clean = x => String(x || '').replace(/\\s/g, '').toUpperCase();\n\n// supplier, duplicate, bank account, VAT ID\nif (!supplier) block(`Lieferant \"${inv.supplier_name}\" (${inv.supplier_vat || 'ohne USt-IdNr.'}) ist nicht in Odoo angelegt.`);\nif (dupes.length) {\n  const state = d => ({ draft: 'Entwurf', posted: 'gebucht' })[d.state] || d.state;\n  const found = dupes.map(d => (d.name && d.name !== '/' ? d.name + ', ' : '') + state(d)).join('; ');\n  block(`Rechnung ${inv.invoice_number} ist schon erfasst (${found}).`);\n}\nif (supplier && inv.supplier_iban && banks.length && !banks.some(b => clean(b.acc_number) === inv.supplier_iban))\n  block(\n    `Bankverbindung weicht ab: Rechnung ${inv.supplier_iban}, in Odoo ${banks.map(b => clean(b.acc_number)).join(', ')}. ` +\n      'Nicht per E-Mail klären, beim Lieferanten unter der bekannten Telefonnummer nachfragen.',\n    { fraud: true },\n  );\nif (supplier && supplier.vat && inv.supplier_vat && clean(supplier.vat) !== inv.supplier_vat)\n  warn(`USt-IdNr. auf der Rechnung (${inv.supplier_vat}) passt nicht zu Odoo (${supplier.vat}).`);\n\n// pick the purchase order: the one named on the invoice, or the only open one whose lines fit\nconst byPo = {};\nfor (const l of poLines) (byPo[l.order_id[0]] = byPo[l.order_id[0]] || []).push(l);\nconst code = l => (l.name.match(/\\[(.*?)\\]/) || [])[1] || '';\nconst fits = (pl, il) =>\n  (il.code && code(pl).toUpperCase() === String(il.code).toUpperCase()) ||\n  (il.description && pl.name.toLowerCase().includes(il.description.toLowerCase().slice(0, 18)));\nlet po = null, poNote = null;\nif (inv.po_ref) {\n  po = pos.find(p => p.name === inv.po_ref || p.partner_ref === inv.po_ref || p.origin === inv.po_ref) || null;\n  if (!po && supplier) warn(`Bestellung ${inv.po_ref} gibt es bei diesem Lieferanten in Odoo nicht.`);\n} else if (supplier) {\n  const open = pos.filter(p =>\n    inv.lines.every(il => (byPo[p.id] || []).some(pl => fits(pl, il) && pl.qty_received - pl.qty_invoiced >= il.quantity)),\n  );\n  if (open.length === 1) {\n    po = open[0];\n    poNote = `Keine Bestellnummer auf der Rechnung; zugeordnet über Lieferant und Artikel: ${po.name}.`;\n  } else\n    warn(open.length ? `Keine Bestellnummer; ${open.length} offene Bestellungen passen, bitte zuordnen.` : 'Keine Bestellnummer und keine passende offene Bestellung.');\n}\n\n// 3-way match per line: ordered, received, already invoiced, this invoice\nconst rows = inv.lines.map((il, i) => {\n  const pl = po ? (byPo[po.id] || []).find(l => fits(l, il)) : null;\n  // a bill Odoo imported may already be linked to this order line; don't count it against itself\n  const self = pl && inv.lines[i] && inv.lines[i].linked_po_line === pl.id ? il.quantity : 0;\n  const row = {\n    pos: i + 1, text: il.description, code: il.code, qty: il.quantity, price: il.unit_price,\n    ordered: pl ? pl.product_qty : null, received: pl ? pl.qty_received : null,\n    invoiced: pl ? pl.qty_invoiced - self : null, po_price: pl ? pl.price_unit : null, issues: [],\n  };\n  if (po && !pl) row.issues.push('nicht bestellt');\n  if (pl) {\n    const open = pl.qty_received - (pl.qty_invoiced - self);\n    if (qtyOverOpen(il.quantity, open)) row.issues.push(`Menge ${il.quantity} > geliefert und noch nicht berechnet ${open}`);\n    if (priceOutsideTolerance(il.unit_price, pl.price_unit, tol)) {\n      const diff = priceDiffPct(il.unit_price, pl.price_unit);\n      row.issues.push(`Preis ${eu(il.unit_price)} statt ${eu(pl.price_unit)} (${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')} %)`);\n    }\n    row.line = pl;\n  }\n  if (dupes.length) row.issues = [];\n  row.issues.forEach(t => warn(`Position ${i + 1} (${il.code || il.description}): ${t}.`));\n  return row;\n});\n\nconst blocked = checks.some(x => x.level === 'block');\nconst decision = blocked ? 'blockiert' : checks.length ? 'abweichung' : 'ok';\n\n// the draft vendor bill: an e-invoice is already a draft in Odoo (only the order lines are linked); otherwise create one\nlet draft = null;\nif (c.importedBillId && !blocked)\n  draft = { model: 'account.move', method: 'write', args: [[c.importedBillId], {\n    invoice_origin: po ? po.name : false,\n    narration: `Automatisch erfasst aus ${c.mail.filename || 'E-Rechnung'} (${c.id}); E-Rechnung von Odoo eingelesen.`,\n    invoice_line_ids: rows\n      .filter(r => r.line && !inv.lines[r.pos - 1].linked_po_line)\n      .map(r => [1, inv.lines[r.pos - 1].move_line_id, { purchase_line_id: r.line.id }]),\n  }] };\nelse if (!blocked && supplier)\n  draft = { model: 'account.move', method: 'create', values: {\n    move_type: 'in_invoice', partner_id: supplier.id, ref: inv.invoice_number,\n    invoice_date: inv.invoice_date, invoice_date_due: inv.due_date || false, invoice_origin: po ? po.name : false,\n    partner_bank_id: (banks.find(b => clean(b.acc_number) === inv.supplier_iban) || {}).id || false,\n    narration: `Automatisch erfasst aus ${c.mail.filename || 'PDF'} (${c.id}).`,\n    invoice_line_ids: rows.map(r => [0, 0, r.line\n      ? { product_id: r.line.product_id[0], name: r.line.name, quantity: r.qty, price_unit: r.price, purchase_line_id: r.line.id, tax_ids: [[6, 0, r.line.taxes_id]] }\n      : { name: r.text, quantity: r.qty, price_unit: r.price }]),\n  } };\nif (draft && draft.method === 'create') draft.args = [draft.values];\n\nreturn [{ json: { ...c, supplier, po: po ? { id: po.id, name: po.name } : null, poNote, rows, checks, decision, draft } }];"
+   }
+  },
+  {
+   "id": "bb556ce7-6091-5964-8c26-36a22f2a1683",
+   "name": "Entwurf anlegen?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    5480,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "Entwurf anlegen?",
+       "leftValue": "={{ !!$json.draft }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "0609e5b8-6ce7-5e15-a926-27332b03dadb",
+   "name": "Rechnungsentwurf anlegen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5680,
+    120
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, $json.draft.model, $json.draft.method, $json.draft.args, {}]} }) }}"
+   }
+  },
+  {
+   "id": "a457ed6d-ffa7-5e67-86f0-99e8facfdaa4",
+   "name": "Rückfrage-Anfrage",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5880,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// One function builds the HTTP request for whichever AI the company chose in the settings.\n// Keys come from the environment (.env.local) or, for \"odoo\", from the AI keys already stored in Odoo.\n// Every provider gets the same prompts; only the request format differs (OpenAI, Anthropic or Azure).\nconst PROVIDERS = {\n  mock:      { label: 'Testmodell (offline)', url: 'http://mock-llm:8099/v1', fmt: 'openai', local: true },\n  ollama:    { label: 'Ollama (lokal)', url: 'http://host.docker.internal:11434/v1', fmt: 'openai', local: true, model: 'qwen2.5:7b' },\n  lmstudio:  { label: 'LM Studio (lokal)', url: 'http://host.docker.internal:1234/v1', fmt: 'openai', local: true },\n  openai:    { label: 'OpenAI', url: 'https://api.openai.com/v1', fmt: 'openai', env: 'OPENAI_API_KEY', model: 'gpt-4o-mini' },\n  anthropic: { label: 'Anthropic Claude', url: 'https://api.anthropic.com/v1', fmt: 'anthropic', env: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5' },\n  gemini:    { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', fmt: 'openai', env: 'GEMINI_API_KEY',\n               model: 'gemini-2.5-flash' },\n  mistral:   { label: 'Mistral', url: 'https://api.mistral.ai/v1', fmt: 'openai', env: 'MISTRAL_API_KEY', model: 'mistral-small-latest' },\n  azure:     { label: 'Azure OpenAI', url: '', fmt: 'azure', env: 'AZURE_OPENAI_API_KEY' },\n  custom:    { label: 'Eigener Endpunkt', url: '', fmt: 'openai', env: 'LLM_API_KEY' },\n};\n\n// \"Wie in Odoo eingerichtet\": find an AI key among the Odoo system parameters listed in the settings\nfunction odooAiKey(s) {\n  const rows = ($('KI aus Odoo lesen').first().json.result || []).filter(r => r.value);\n  const prefer = s.odoo_ai_prefer || 'openai';\n  const kind = r => (/openai/i.test(r.key) ? 'openai' : /google|gemini/i.test(r.key) ? 'gemini' : /anthropic|claude/i.test(r.key) ? 'anthropic' : null);\n  const found = rows.map(r => ({ provider: kind(r), key: r.value, param: r.key })).filter(r => r.provider);\n  return found.find(r => r.provider === prefer) || found[0] || null;\n}\n\nfunction llmRequest(s, system, user, temperature) {\n  let p = s.llm_provider || 'mock', key = null, from = null;\n  if (p === 'odoo') {\n    const hit = odooAiKey(s);\n    if (!hit)\n      throw new Error(\n        'In Odoo ist kein KI-Schlüssel hinterlegt (gesucht: ' + (s.odoo_ai_params || []).join(', ') + '). ' +\n          'Bitte in den Einstellungen einen anderen KI-Anbieter wählen.',\n      );\n    p = hit.provider;\n    key = hit.key;\n    from = 'Odoo (' + hit.param + ')';\n  }\n  const P = PROVIDERS[p];\n  if (!P) throw new Error('Unbekannter KI-Anbieter: ' + p);\n  const base = String(s.llm_url || P.url).replace(/\\/+$/, '');\n  if (!base) throw new Error('Für ' + P.label + ' fehlt die Adresse (URL) in den Einstellungen.');\n  key = key || (P.env ? $env[P.env] || $env.LLM_API_KEY : null) || null;\n  if (P.env && !key) throw new Error('Für ' + P.label + ' fehlt der API-Schlüssel ' + P.env + ' in .env.local.');\n  const model = (from ? s.odoo_ai_model || P.model : s.llm_model) || P.model || 'local-model';\n  let url, body;\n  const headers = { 'Content-Type': 'application/json' };\n  if (P.fmt === 'anthropic') {\n    url = base + '/messages';\n    headers['x-api-key'] = key;\n    headers['anthropic-version'] = '2023-06-01';\n    body = { model, max_tokens: 1500, temperature, system, messages: [{ role: 'user', content: user }] };\n  } else {\n    url = P.fmt === 'azure'\n      ? `${base}/openai/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${s.azure_api_version || '2024-10-21'}`\n      : base + '/chat/completions';\n    if (key) {\n      if (P.fmt === 'azure') headers['api-key'] = key;\n      else headers['Authorization'] = 'Bearer ' + key;\n    }\n    body = { model, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };\n  }\n  return { url, headers, body, provider: p, label: P.label + (from ? ', Schlüssel aus ' + from : ''), model, local: !!P.local };\n}\n\n// Node \"Rückfrage-Anfrage\": for a difference (\"abweichung\") the AI drafts a short query to the supplier.\n// The draft is only sent after a person clicks the button in the approval mail.\nconst c = $('Abgleich').first().json;\nconst created = $('Rechnungsentwurf anlegen').isExecuted ? $('Rechnungsentwurf anlegen').first().json.result : null;\nconst draftId = c.importedBillId || (typeof created === 'number' ? created : null);\nconst s = c.settings;\nconst wantQuery = c.decision === 'abweichung' && !!c.supplier;\nlet llm = null;\nif (wantQuery) {\n  const settings = { language: 'de', formality: 'Sie', tone: 'sachlich', length: 'short', apology: 'never', closing_de: s.closing_de, signature: s.inv_signature };\n  const system = [\n    'TASK: supplier_query',\n    'Du schreibst für die Kreditorenbuchhaltung der Rheinmark Handels GmbH eine kurze Rückfrage an einen Lieferanten zu einer Rechnung.',\n    'Nenne jede Abweichung sachlich mit den Zahlen und bitte um Korrektur oder Gutschrift. Keine Vorwürfe. Halte dich exakt an diesen Stilleitfaden:',\n    c.style,\n    'Einstellungen: ' + JSON.stringify(settings),\n    'Gib NUR die fertige E-Mail zurück: erste Zeile \"Betreff: ...\", Leerzeile, dann der Text mit Signatur.',\n  ].join('\\n\\n');\n  const dd = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : '–');\n  const user = [\n    `MESSAGE-ID: ${c.id}`,\n    `Lieferant: ${c.supplier.name}`,\n    `Rechnung: ${c.inv.invoice_number} vom ${dd(c.inv.invoice_date)}`,\n    `Bestellung: ${c.po ? c.po.name : 'keine'}`,\n    `Abweichungen:\\n- ${c.checks.map(x => x.text).join('\\n- ')}`,\n  ].join('\\n\\n');\n  llm = llmRequest(s, system, user, 0.2);\n}\nreturn [{ json: { ...c, draftId, wantQuery, llm } }];"
+   }
+  },
+  {
+   "id": "777d2e52-9f54-5b6f-9a7b-45edbd678db4",
+   "name": "Eingang bestätigen",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    6080,
+    300
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify({ ok: true, decision: $json.decision }) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "ea6d3d67-8b6e-58f3-8ce0-49d4b1f54cf1",
+   "name": "Rückfrage schreiben?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    6280,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "Rückfrage schreiben?",
+       "leftValue": "={{ $json.wantQuery }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "c187a6b4-9d5b-50a4-a6b5-9de8a45e222b",
+   "name": "KI schreibt Rückfrage",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    6480,
+    120
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.llm.url }}",
+    "sendHeaders": true,
+    "specifyHeaders": "json",
+    "jsonHeaders": "={{ JSON.stringify($json.llm.headers) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.llm.body) }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "id": "94436c7e-4000-5e36-adc5-98209f39db5a",
+   "name": "Freigabe-Mail bauen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    6680,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Reads the text out of an answer in OpenAI format (choices) or Anthropic format (content blocks).\nconst aiText = j => (j.choices?.[0]?.message?.content ?? (j.content || []).map(b => b.text || '').join('') ?? '');\n\n// One look for every approval e-mail: light, inline styles, a table shell, no script.\n// Warm near-black ink, one hairline, 4px corners, one width, a coloured top edge per verdict,\n// one filled button for the expected next step. A small <style> block only adapts it to phones.\nconst M = {\n  ink: '#1d1c1a', muted: '#5c5a55', line: '#e2e0db', soft: '#f6f5f2', page: '#efeeea',\n  ok: '#24663b', look: '#8f8230', stop: '#a3231a', neutral: '#77746d', lookBg: '#f4efd4', stopBg: '#f9e5e2',\n  font: \"-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif\",\n  mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',\n};\n\nconst MAIL_CSS = [\n  '@media (max-width:600px){',\n  '.page{padding:12px 6px!important}.pad{padding:22px 14px 26px!important}.iban{padding:12px 12px!important}',\n  '.hide-s{display:none!important}.show-s{display:block!important}',\n  '.btn{display:block!important;margin:0 0 10px!important;text-align:center!important}',\n  'table.ib td{display:block!important;padding:2px 0!important}table.ib td.k{padding-top:8px!important}',\n  'table.kv td{display:block!important;width:auto!important;padding:0!important;border:0!important}table.kv td.k{padding-top:10px!important}',\n  `table.kv tr td.v{padding-bottom:10px!important;border-bottom:1px solid ${M.line}!important}`,\n  'table.data td,table.data th{font-size:13px!important;padding-right:6px!important}}',\n].join('\\n');\n\nconst mail = (accent, inner) =>\n  '<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">' +\n  `<style>${MAIL_CSS}</style></head>\\n` +\n  `<body style=\"margin:0;padding:0;background:${M.page}\">` +\n  `<div class=\"page\" style=\"margin:0;padding:24px 12px;background:${M.page};font-family:${M.font};color:${M.ink};-webkit-text-size-adjust:100%\">\\n` +\n  '<table class=\"shell\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ' +\n  `style=\"max-width:680px;margin:0 auto;background:#ffffff;border:1px solid ${M.line};border-top:4px solid ${accent};border-radius:4px;border-collapse:separate\">\\n` +\n  `<tr><td class=\"pad\" style=\"padding:28px 32px 32px;font-family:${M.font};font-size:15px;line-height:1.55;color:${M.ink}\">${inner}</td></tr></table></div></body></html>`;\n\n// small line above the headline: \"Eingangsrechnung · Supplier\"\nconst kicker = (flow, who) =>\n  `<p style=\"margin:0 0 6px;font-size:13px;line-height:1.4;color:${M.muted}\"><span style=\"font-weight:600;color:${M.ink}\">${flow}</span>${who ? ' · ' + who : ''}</p>`;\n// the verdict: the same word as in the subject, then one short line that says what it means\nconst verdict = (t, color) =>\n  `<h1 class=\"verdict\" style=\"margin:0 0 4px;font-size:22px;line-height:1.3;font-weight:600;color:${color || M.ink}\">${t}</h1>`;\nconst subline = t => `<p class=\"subline\" style=\"margin:0 0 12px;font-size:15px;line-height:1.5;color:${M.ink}\">${t}</p>`;\nconst para = (t, extra) => `<p style=\"margin:0 0 12px;font-size:15px;line-height:1.55;color:${M.ink};${extra || ''}\">${t}</p>`;\nconst note = t => `<p style=\"margin:0 0 8px;font-size:13px;line-height:1.5;color:${M.muted}\">${t}</p>`;\nconst section = t => `<h2 style=\"margin:28px 0 10px;font-size:15px;line-height:1.4;font-weight:600;color:${M.ink}\">${t}</h2>`;\nconst link = (href, t) => `<p style=\"margin:14px 0 0;font-size:15px\"><a href=\"${href}\" style=\"color:${M.ink};text-decoration:underline\">${t}</a></p>`;\nconst quote = (t, extra) =>\n  `<pre style=\"margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:${M.font};font-size:15px;line-height:1.55;color:${M.ink};` +\n  `background:${M.soft};border:1px solid ${M.line};border-radius:4px;padding:16px 20px;${extra || ''}\">${t}</pre>`;\n\n// tables: th / td cells, a data table with a header row, and label / value rows (\"facts\")\nconst th = (t, right, cls) =>\n  `<th${cls ? ` class=\"${cls}\"` : ''} style=\"padding:8px 12px 8px 0;border-bottom:1px solid ${M.ink};font-size:13px;font-weight:500;` +\n  `color:${M.muted};text-align:${right ? 'right' : 'left'};vertical-align:bottom\">${t}</th>`;\nconst td = (t, right, extra, cls) =>\n  `<td${cls ? ` class=\"${cls}\"` : ''} style=\"padding:9px 12px 9px 0;border-bottom:1px solid ${M.line};font-size:14px;` +\n  `text-align:${right ? 'right' : 'left'};${right ? 'white-space:nowrap;' : ''}${extra || ''}\">${t}</td>`;\nconst dataTable = (head, rows) =>\n  '<table class=\"data\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ' +\n  `style=\"border-collapse:collapse;margin:16px 0 4px;font-family:${M.font};color:${M.ink}\">${head ? `<tr>${head}</tr>` : ''}${rows}</table>`;\n// rows without a value are left out instead of printing a dash\nconst facts = (rows, cls) =>\n  `<table class=\"kv${cls ? ' ' + cls : ''}\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" ` +\n  `style=\"border-collapse:collapse;margin:16px 0 4px;font-family:${M.font};color:${M.ink}\">` +\n  rows\n    .filter(r => r && r[1] !== null && r[1] !== undefined && r[1] !== '')\n    .map(([k, v]) =>\n      `<tr><td class=\"k\" style=\"width:150px;padding:9px 12px 9px 0;border-bottom:1px solid ${M.line};font-size:13px;font-weight:500;color:${M.muted};vertical-align:top\">${k}</td>` +\n      `<td class=\"v\" style=\"padding:9px 0;border-bottom:1px solid ${M.line};font-size:14px;line-height:1.5;vertical-align:top\">${v}</td></tr>`)\n    .join('') +\n  '</table>';\nconst decided = rows => section('Wie entschieden wurde') + facts(rows, 'how');\n\n// buttons: [href, label, kind] with kind 'primary' (filled), 'secondary' (outlined) or 'text' (plain link)\nconst button = ([href, t, kind]) =>\n  kind === 'text'\n    ? `<a class=\"btn\" href=\"${href}\" style=\"display:inline-block;margin:0 8px 8px 4px;padding:11px 4px;color:${M.ink};font-family:${M.font};font-size:15px;line-height:1.2;text-decoration:underline\">${t}</a>`\n    : `<a class=\"btn\" href=\"${href}\" style=\"display:inline-block;margin:0 8px 8px 0;padding:12px 20px;border:1px solid ${M.ink};border-radius:4px;` +\n      `background:${kind === 'primary' ? M.ink : '#ffffff'};color:${kind === 'primary' ? '#ffffff' : M.ink};font-family:${M.font};font-size:15px;font-weight:600;line-height:1.2;text-decoration:none\">${t}</a>`;\nconst buttons = (list, after) =>\n  `<div class=\"actions\" style=\"margin-top:28px\">${list.filter(Boolean).map(button).join('')}` +\n  (after ? `<p style=\"margin:10px 0 0;font-size:13px;line-height:1.5;color:${M.muted}\">${after}</p>` : '') +\n  '</div>';\n\nconst deDate = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : null);\nconst groups = s => String(s || '').replace(/\\s/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();\n// Odoo is linked at the address the person opens in the browser (ODOO_PUBLIC_URL in .env.local, default localhost)\nconst ODOO_WEB = String($env.ODOO_PUBLIC_URL || 'http://localhost:8069').replace(/\\/+$/, '');\n\n// Node \"Freigabe-Mail bauen\": the approval e-mail to Accounts. Presentation only: every value and finding\n// comes from the earlier nodes. Uses the helpers in shared/mail-layout.js.\nconst c = $('Rückfrage-Anfrage').first().json;\nconst i = c.inv;\n\n// the supplier query the AI drafted (only for \"abweichung\"), with a quick check of the hardest style rules\nlet query = null;\nif (c.wantQuery && $('KI schreibt Rückfrage').isExecuted) {\n  const t = (aiText($('KI schreibt Rückfrage').first().json) || '').trim();\n  const bad = /[—–]|\\s--\\s|zögern Sie nicht|erreicht Sie wohlbehalten|jederzeit (gerne )?zur Verfügung|\\*\\*/i.test(t);\n  if (t && !t.startsWith('NO_FIXTURE')) {\n    const [first, ...rest] = t.split('\\n');\n    query = { subject: first.replace(/^Betreff:\\s*/i, '').trim(), body: rest.join('\\n').replace(/^\\s+/, ''), styleWarning: bad };\n  }\n}\n\nconst esc = v => String(v ?? '–').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst money = v => (v === null || v === undefined ? '–' : Number(v).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ' €');\nconst resume = $execution.resumeUrl + ($execution.resumeUrl.includes('?') ? '&' : '?');\nconst R = true; // right-aligned cell\nconst tol = Number(c.settings.inv_price_tolerance_pct ?? 2);\nconst pct = v => `${v > 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')} %`;\n\n// one word per verdict, the same in the subject and the headline, then one short line\nconst short = { ok: 'Buchbar', abweichung: 'Abweichung', blockiert: 'Gestoppt' }[c.decision];\nconst n = c.checks.length;\nconst sub = {\n  ok: 'Kann gebucht werden.',\n  abweichung: `${n} ${n === 1 ? 'Punkt weicht' : 'Punkte weichen'} ab. ${query ? 'Die Rückfrage an den Lieferanten ist vorbereitet.' : 'Bitte prüfen.'}`,\n  blockiert: 'Nicht buchen.',\n}[c.decision];\nconst color = c.decision === 'blockiert' ? M.stop : M.ink;\nconst accent = { ok: M.ok, abweichung: M.look, blockiert: M.stop }[c.decision];\n\n// 3-way match table: only the cell that breaks a rule is marked; matching rows stay plain\nconst mark = `background:${M.lookBg};font-weight:600;`;\nconst small = t => `<br><span style=\"font-weight:400;font-size:12px;color:${M.muted}\">${t}</span>`;\nconst table = dataTable(\n  th('Pos.', false, 'hide-s') + th('Artikel') + th('bestellt', R) + th('geliefert', R) + th('schon berechnet', R, 'hide-s') +\n    th('diese Rechnung', R) + th('Preis Bestellung', R, 'hide-s') + th('Preis Rechnung', R),\n  c.rows\n    .map(r => {\n      const priceOff = r.issues.some(t => t.startsWith('Preis'));\n      const qtyOff = r.issues.some(t => t.startsWith('Menge'));\n      const notOrdered = r.issues.includes('nicht bestellt');\n      const open = r.received !== null && r.invoiced !== null ? r.received - r.invoiced : null;\n      const qty = qtyOff ? esc(r.qty) + small(`offen ${esc(open)}`) : esc(r.qty);\n      const price =\n        (priceOff && r.po_price ? money(r.price) + small(pct(((r.price - r.po_price) / r.po_price) * 100)) : money(r.price)) +\n        (r.po_price !== null ? `<span class=\"show-s\" style=\"display:none;font-weight:400;font-size:12px;color:${M.muted}\">Bestellung ${money(r.po_price)}</span>` : '');\n      const item = `<span style=\"white-space:nowrap\">${esc(r.code || r.text)}</span>` + (notOrdered ? small('nicht bestellt') : '');\n      return '<tr>' + td(r.pos, false, '', 'hide-s') + td(item, false, notOrdered ? mark : '') + td(esc(r.ordered), R) + td(esc(r.received), R) +\n        td(esc(r.invoiced), R, '', 'hide-s') + td(qty, R, qtyOff ? mark : '') + td(money(r.po_price), R, '', 'hide-s') + td(price, R, priceOff ? mark : '') + '</tr>';\n    })\n    .join(''),\n);\n\n// a stopped bank account: the invoice IBAN above the one stored in Odoo, in groups of four.\n// The invoice IBAN is red; only the groups that differ are bold (and underlined when some groups match,\n// because one or two changed digits are the easy ones to miss).\nconst clean = x => String(x || '').replace(/\\s/g, '').toUpperCase();\nconst fraud = c.checks.some(x => x.fraud);\nconst banks = (($('Bankkonten lesen').isExecuted ? $('Bankkonten lesen').first().json.result : null) || [])\n  .map(b => clean(b.acc_number))\n  .filter(b => b && b !== i.supplier_iban);\nconst ibanLine = (v, other) => {\n  const a = groups(v).split(' '), b = groups(other).split(' ');\n  const off = a.map((g, k) => !!other && g !== b[k]), some = off.includes(false);\n  const strong = g => `<span style=\"font-weight:700;${some ? 'text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px' : ''}\">${g}</span>`;\n  return a.map((g, k) => (off[k] ? strong(g) : g)).join(' ');\n};\nconst ibanRow = (k, v) =>\n  `<tr><td class=\"k\" style=\"padding:8px 14px 8px 0;font-size:13px;font-weight:500;color:${M.muted};white-space:nowrap;vertical-align:top\">${k}</td>` +\n  `<td style=\"padding:8px 0;font-family:${M.mono};font-size:15px;letter-spacing:.02em;line-height:1.5\">${v}</td></tr>`;\nconst supplierLink = c.supplier\n  ? ` <a href=\"${ODOO_WEB}/odoo/action-account.res_partner_action_supplier/${c.supplier.id}\" style=\"color:${M.ink};text-decoration:underline\">Lieferant in Odoo öffnen</a>`\n  : '';\nconst phone = c.supplier && c.supplier.phone\n  ? `Rückruf unter der in Odoo gespeicherten Nummer: <b>${esc(c.supplier.phone)}</b>.`\n  : 'In Odoo ist für diesen Lieferanten keine Telefonnummer hinterlegt. Nur eine schon bekannte Nummer verwenden, nicht die aus der Rechnung oder der E-Mail.';\nconst fraudBlock = fraud && i.supplier_iban\n  ? `<div class=\"iban\" style=\"margin:4px 0 18px;padding:14px 18px;background:${M.stopBg};border-left:3px solid ${M.stop};border-radius:0 4px 4px 0\">\\n` +\n    '<table class=\"ib\" role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">' +\n    ibanRow('IBAN auf der Rechnung', `<span style=\"color:${M.stop}\">${ibanLine(i.supplier_iban, banks[0] || '')}</span>`) +\n    (banks.length\n      ? banks.map((b, k) => ibanRow(k ? '' : 'IBAN in Odoo', groups(b))).join('')\n      : ibanRow('IBAN in Odoo', `<span style=\"font-family:${M.font};font-size:14px\">keine andere hinterlegt</span>`)) +\n    '</table>\\n' +\n    `<p style=\"margin:10px 0 0;font-size:14px;line-height:1.5;color:${M.ink}\">${phone}${supplierLink}</p></div>`\n  : '';\n// when the IBAN block is shown, the bullet leaves the IBANs out (same finding, the values are in the block)\nconst checkText = x =>\n  !(x.fraud && fraudBlock)\n    ? x.text\n    : x.text.startsWith('Bankverbindung weicht ab:')\n      ? 'Bankverbindung weicht von Odoo ab. Nicht per E-Mail klären, beim Lieferanten unter der bekannten Telefonnummer nachfragen.'\n      : x.text.replace(' ' + i.supplier_iban, '');\nconst findings = n\n  ? `<ul class=\"checks\" style=\"margin:14px 0 16px;padding:0 0 0 20px;font-size:15px;line-height:1.55;color:${color}\">` +\n    c.checks.map(x => `<li style=\"margin:0 0 4px\">${x.fraud ? '<b>' : ''}${esc(checkText(x))}${x.fraud ? '</b>' : ''}</li>`).join('') +\n    '</ul>'\n  : `<p class=\"checks\" style=\"margin:14px 0 16px;font-size:15px;line-height:1.55;color:${M.ink}\">Bestellung, Wareneingang und Rechnung stimmen überein. Summen, USt-IdNr. und IBAN geprüft.</p>`;\n\nconst odoo = c.draftId ? link(`${ODOO_WEB}/odoo/action-account.action_move_in_invoice_type/${c.draftId}`, 'Rechnungsentwurf in Odoo öffnen') : '';\nconst readAi = $('Lese-Anfrage').isExecuted ? $('Lese-Anfrage').first().json.llm : null;\nconst ai = c.llm || readAi;\n// name the query only when this mail contains one (c.llm can also be the read request carried along)\nconst aiUse = readAi && query ? 'hat die Rechnung gelesen und die Rückfrage entworfen' : readAi ? 'hat die Rechnung gelesen' : query ? 'hat die Rückfrage entworfen' : '';\n\n// buttons: the expected next step is the filled one\nconst draftLabel = c.draftId ? 'Entwurf verwerfen' : 'Als erledigt markieren';\nconst canPost = c.draftId && c.decision !== 'blockiert';\nconst btns = [\n  query ? [`${resume}d=query`, 'Rückfrage an Lieferanten senden', 'primary'] : null,\n  canPost ? [`${resume}d=post`, 'Buchen', c.decision === 'ok' ? 'primary' : 'secondary'] : null,\n  [`${resume}d=reject`, draftLabel, canPost || query ? 'text' : 'secondary'],\n];\nconst after = [\n  query ? `Rückfrage sendet den Entwurf oben an ${esc(c.supplier.email)}; die Rechnung bleibt als Entwurf offen.` : null,\n  canPost ? 'Buchen bucht die Rechnung in Odoo.' : null,\n  c.draftId ? 'Entwurf verwerfen storniert den Entwurf in Odoo.' : 'Als erledigt markieren bucht nichts, es wird nur vermerkt.',\n  'Ohne Klick passiert nichts.',\n].filter(Boolean).join(' ');\n\nconst html = mail(\n  accent,\n  kicker('Eingangsrechnung', esc(i.supplier_name)) + verdict(esc(short), color) + subline(sub) + findings + fraudBlock +\n    facts([\n      ['Rechnung', `<b>${esc(i.invoice_number)}</b>${i.invoice_date ? ` vom ${deDate(i.invoice_date)}` : ''}${i.due_date ? ` <span style=\"color:${M.muted}\">· fällig ${deDate(i.due_date)}</span>` : ''}`],\n      ['Betrag', `<b>${money(i.gross_total)}</b> <span style=\"color:${M.muted}\">brutto · netto ${money(i.net_total)} · USt ${money(i.vat_amount)}</span>`],\n      ['Bestellung', esc(c.po ? c.po.name : i.po_ref || 'keine')],\n    ]) +\n    (c.poNote ? note(esc(c.poNote)) : '') +\n    (c.rows.length ? table : '') + odoo +\n    (query\n      ? section(`Entwurf der Rückfrage an ${esc(c.supplier.email)}${query.styleWarning ? ` <span style=\"color:${M.stop}\">(Stilregeln verletzt, bitte prüfen)</span>` : ''}`) +\n        quote(`Betreff: ${esc(query.subject)}\\n\\n${esc(query.body)}`)\n      : '') +\n    decided([\n      ['Preistoleranz', `${String(tol).replace('.', ',')} % (aus den Einstellungen)`],\n      ['Feste Prüfungen', 'Summen, USt-IdNr., IBAN, Dubletten, Bankverbindung'],\n      ['Gelesen', esc(c.readBy)],\n      ai ? ['KI', `${esc(ai.label)} · ${ai.local ? 'lokal, keine Daten nach außen' : 'Cloud: Rechnungsdaten gingen an diesen Anbieter'}${aiUse ? ` · ${aiUse}` : ''}`] : null,\n      ['Datei', esc(c.mail.filename)],\n    ]) +\n    buttons(btns, after),\n);\nconst approvalSubject = `[Eingangsrechnung] ${short} · ${i.supplier_name} · ${i.invoice_number} · ${money(i.gross_total)}`;\nreturn [{ json: { ...c, query, approvalHtml: html, approvalSubject } }];"
+   }
+  },
+  {
+   "id": "1a0c2c00-d0dc-5c52-96b9-d98ab9228ff2",
+   "name": "Freigabe anfragen",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    6880,
+    300
+   ],
+   "parameters": {
+    "fromEmail": "={{ $json.settings.inv_mailbox }}",
+    "toEmail": "={{ $json.settings.inv_approval_email }}",
+    "subject": "={{ $json.approvalSubject }}",
+    "emailFormat": "html",
+    "html": "={{ $json.approvalHtml }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "smtp": {
+     "id": "smtp-mailpit",
+     "name": "Mailpit SMTP"
+    }
+   }
+  },
+  {
+   "id": "b072f815-a25b-50ee-8d9f-9403eaacb070",
+   "name": "Auf Freigabe warten",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    7080,
+    300
+   ],
+   "parameters": {
+    "resume": "webhook",
+    "options": {}
+   },
+   "webhookId": "rechnung-freigabe"
+  },
+  {
+   "id": "3328ed27-1489-5ec5-b344-e34dff6b1813",
+   "name": "Abschluss vorbereiten",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    7280,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Abschluss vorbereiten\": what the click in the approval mail means (d = post | query | reject).\n// A stopped invoice (\"blockiert\") is never posted, even if someone calls the post link by hand.\nconst c = $('Freigabe-Mail bauen').first().json;\nconst d = $json.query?.d || 'reject';\nlet call = null;\nif (c.draftId && d === 'post' && c.decision !== 'blockiert') call = { model: 'account.move', method: 'action_post', args: [[c.draftId]] };\nif (c.draftId && d === 'reject') call = { model: 'account.move', method: 'button_cancel', args: [[c.draftId]] };\nconst label = {\n  post: 'gebucht',\n  query: 'Rückfrage an den Lieferanten gesendet, Entwurf bleibt offen',\n  reject: c.draftId ? 'Entwurf verworfen' : 'als erledigt markiert',\n}[d];\nconst note = `Eingangsrechnung ${c.inv.invoice_number} (${c.id}): ${label}. ${c.checks.map(x => x.text).join(' ')}`.trim();\nconst target = c.draftId ? { model: 'account.move', id: c.draftId } : c.po ? { model: 'purchase.order', id: c.po.id } : null;\nreturn [{ json: { ...c, d, call, note, target, sendQuery: d === 'query' && !!c.query } }];"
+   }
+  },
+  {
+   "id": "f47871d5-f6a8-5b54-9a74-d1d2fcb4612c",
+   "name": "Odoo-Aktion?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    7480,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "Odoo-Aktion?",
+       "leftValue": "={{ !!$json.call }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "6bb00b73-fe23-50e9-a0b7-fe31056ce2b0",
+   "name": "In Odoo ausführen",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    7680,
+    120
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, $json.call.model, $json.call.method, $json.call.args, {}]} }) }}"
+   }
+  },
+  {
+   "id": "4240893c-6374-5a33-ae0e-3488cd9fd5d0",
+   "name": "Rückfrage senden?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    7880,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "Rückfrage senden?",
+       "leftValue": "={{ $('Abschluss vorbereiten').first().json.sendQuery }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "205264f5-168d-55b8-86d1-929650b27331",
+   "name": "Rückfrage an Lieferanten",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    8080,
+    120
+   ],
+   "parameters": {
+    "fromEmail": "={{ $('Abschluss vorbereiten').first().json.settings.inv_mailbox }}",
+    "toEmail": "={{ $('Abschluss vorbereiten').first().json.supplier.email }}",
+    "subject": "={{ $('Abschluss vorbereiten').first().json.query.subject }}",
+    "emailFormat": "text",
+    "text": "={{ $('Abschluss vorbereiten').first().json.query.body }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "smtp": {
+     "id": "smtp-mailpit",
+     "name": "Mailpit SMTP"
+    }
+   }
+  },
+  {
+   "id": "41398499-0fa3-508f-8b74-9e2c87977271",
+   "name": "Notiz möglich?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    8280,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "Notiz möglich?",
+       "leftValue": "={{ !!$('Abschluss vorbereiten').first().json.target }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "801e3c13-cf76-5360-a28f-f5238fe20070",
+   "name": "Notiz in Odoo",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    8480,
+    120
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.ODOO_URL || 'http://odoo:8069').replace(/\\/+$/, '') + '/jsonrpc' }}",
+    "options": {
+     "timeout": 120000
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({jsonrpc: \"2.0\", method: \"call\", params: {service: \"object\", method: \"execute_kw\", args: [$env.ODOO_DB, $(\"Odoo Login\").first().json.result, $env.ODOO_PASSWORD, $(\"Abschluss vorbereiten\").first().json.target.model, \"message_post\", [[$(\"Abschluss vorbereiten\").first().json.target.id]], {body: $(\"Abschluss vorbereiten\").first().json.note}]} }) }}"
+   }
+  },
+  {
+   "id": "5d3033ac-9293-5ceb-9256-e6bed9bd983d",
+   "name": "Protokollzeile",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    8680,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Protokollzeile\": one JSON line per invoice in data/log.jsonl.\nconst c = $('Abschluss vorbereiten').first().json;\nconst entry = {\n  at: new Date().toISOString(), kind: 'eingangsrechnung', id: c.id, supplier: c.inv.supplier_name, invoice: c.inv.invoice_number,\n  gross: c.inv.gross_total, po: c.po ? c.po.name : null, decision: c.decision, action: c.d, bill: c.draftId,\n  checks: c.checks.map(x => x.level + ': ' + x.text),\n};\nconst line = JSON.stringify(entry) + '\\n';\nreturn [{ json: { line }, binary: { data: { data: Buffer.from(line).toString('base64'), mimeType: 'application/json', fileName: 'log.jsonl' } } }];"
+   }
+  },
+  {
+   "id": "a7bfe5ce-623b-59d5-a18f-7b06b70f4409",
+   "name": "Protokoll schreiben",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    8880,
+    300
+   ],
+   "parameters": {
+    "operation": "write",
+    "fileName": "/files/data/log.jsonl",
+    "options": {
+     "append": true
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Rechnung eingegangen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen lesen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Stilregeln datei",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stilregeln datei": {
+   "main": [
+    [
+     {
+      "node": "Stilregeln lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Stilregeln lesen": {
+   "main": [
+    [
+     {
+      "node": "Dokument holen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dokument holen": {
+   "main": [
+    [
+     {
+      "node": "Dokument erkennen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dokument erkennen": {
+   "main": [
+    [
+     {
+      "node": "Kontext",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Kontext": {
+   "main": [
+    [
+     {
+      "node": "Odoo Login",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Odoo Login": {
+   "main": [
+    [
+     {
+      "node": "KI aus Odoo lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI aus Odoo lesen": {
+   "main": [
+    [
+     {
+      "node": "E-Rechnung?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "E-Rechnung?": {
+   "main": [
+    [
+     {
+      "node": "Datei für Odoo",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Lese-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Datei für Odoo": {
+   "main": [
+    [
+     {
+      "node": "Einkaufsjournal",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einkaufsjournal": {
+   "main": [
+    [
+     {
+      "node": "In Odoo hochladen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "In Odoo hochladen": {
+   "main": [
+    [
+     {
+      "node": "Odoo liest E-Rechnung",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Odoo liest E-Rechnung": {
+   "main": [
+    [
+     {
+      "node": "Beleg lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Beleg lesen": {
+   "main": [
+    [
+     {
+      "node": "Belegzeilen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Belegzeilen lesen": {
+   "main": [
+    [
+     {
+      "node": "Belegpartner lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Belegpartner lesen": {
+   "main": [
+    [
+     {
+      "node": "Bankkonto lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bankkonto lesen": {
+   "main": [
+    [
+     {
+      "node": "E-Rechnung übernehmen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "E-Rechnung übernehmen": {
+   "main": [
+    [
+     {
+      "node": "Prüfungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Lese-Anfrage": {
+   "main": [
+    [
+     {
+      "node": "KI liest Rechnung",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI liest Rechnung": {
+   "main": [
+    [
+     {
+      "node": "KI-Antwort prüfen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI-Antwort prüfen": {
+   "main": [
+    [
+     {
+      "node": "Prüfungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prüfungen": {
+   "main": [
+    [
+     {
+      "node": "Lieferant suchen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Lieferant suchen": {
+   "main": [
+    [
+     {
+      "node": "Bankkonten lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bankkonten lesen": {
+   "main": [
+    [
+     {
+      "node": "Bestellungen suchen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bestellungen suchen": {
+   "main": [
+    [
+     {
+      "node": "Bestellpositionen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bestellpositionen lesen": {
+   "main": [
+    [
+     {
+      "node": "Dubletten prüfen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dubletten prüfen": {
+   "main": [
+    [
+     {
+      "node": "Abgleich",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Abgleich": {
+   "main": [
+    [
+     {
+      "node": "Entwurf anlegen?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Entwurf anlegen?": {
+   "main": [
+    [
+     {
+      "node": "Rechnungsentwurf anlegen",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Rückfrage-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rechnungsentwurf anlegen": {
+   "main": [
+    [
+     {
+      "node": "Rückfrage-Anfrage",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rückfrage-Anfrage": {
+   "main": [
+    [
+     {
+      "node": "Eingang bestätigen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Eingang bestätigen": {
+   "main": [
+    [
+     {
+      "node": "Rückfrage schreiben?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rückfrage schreiben?": {
+   "main": [
+    [
+     {
+      "node": "KI schreibt Rückfrage",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Freigabe-Mail bauen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "KI schreibt Rückfrage": {
+   "main": [
+    [
+     {
+      "node": "Freigabe-Mail bauen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Freigabe-Mail bauen": {
+   "main": [
+    [
+     {
+      "node": "Freigabe anfragen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Freigabe anfragen": {
+   "main": [
+    [
+     {
+      "node": "Auf Freigabe warten",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Auf Freigabe warten": {
+   "main": [
+    [
+     {
+      "node": "Abschluss vorbereiten",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Abschluss vorbereiten": {
+   "main": [
+    [
+     {
+      "node": "Odoo-Aktion?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Odoo-Aktion?": {
+   "main": [
+    [
+     {
+      "node": "In Odoo ausführen",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Rückfrage senden?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "In Odoo ausführen": {
+   "main": [
+    [
+     {
+      "node": "Rückfrage senden?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rückfrage senden?": {
+   "main": [
+    [
+     {
+      "node": "Rückfrage an Lieferanten",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Notiz möglich?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rückfrage an Lieferanten": {
+   "main": [
+    [
+     {
+      "node": "Notiz möglich?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Notiz möglich?": {
+   "main": [
+    [
+     {
+      "node": "Notiz in Odoo",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Protokollzeile",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Notiz in Odoo": {
+   "main": [
+    [
+     {
+      "node": "Protokollzeile",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Protokollzeile": {
+   "main": [
+    [
+     {
+      "node": "Protokoll schreiben",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ },
+ "pinData": {}
+}

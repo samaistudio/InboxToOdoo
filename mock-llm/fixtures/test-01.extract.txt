@@ -1,0 +1,1 @@
+{"order_ref": "RW-2026-0412", "product_hint": "BS-18", "quantity_affected": 1, "problem_type": "defekt", "customer_wants": "ersatz", "urgency": "hoch", "language": "de", "formality_used": "Sie", "summary": "Einer von vier Akku-Bohrschraubern BS-18 lädt nicht mehr, der Kunde braucht schnell Ersatz."}

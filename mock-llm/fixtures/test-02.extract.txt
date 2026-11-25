@@ -1,0 +1,1 @@
+{"order_ref": "RW-2026-0431", "product_hint": "LM-50", "quantity_affected": 1, "problem_type": "beschaedigt", "customer_wants": "gutschrift", "urgency": "normal", "language": "de", "formality_used": "Sie", "summary": "Display des Laser-Entfernungsmessers LM-50 war bei Lieferung gesprungen, die Kundin möchte ihr Geld zurück."}

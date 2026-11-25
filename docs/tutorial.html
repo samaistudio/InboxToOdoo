@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InboxToOdoo walkthrough</title>
+<meta name="description" content="Nine real screens from the InboxToOdoo demo: supplier invoices and a customer complaint, from the mailbox to the approval mail to the draft in Odoo.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">InboxToOdoo</a>
+  <nav><a class="hide-s" href="./#how">How it works</a><a class="on" href="tutorial.html">Walkthrough</a><a href="https://github.com/samaistudio/InboxToOdoo">Code</a><a href="./#about">Contact</a></nav>
+</div></header>
+<main class="wrap">
+  <div class="tut-head">
+    <h1>Walkthrough: from the mailbox to Odoo</h1>
+    <p>Real screens from the running demo with a fictional wholesaler. Scroll: the screenshot stays and the part each note explains is highlighted.</p>
+    <div class="index" id="index"></div>
+  </div>
+  <div class="walk">
+    <div class="stagebox" id="stage" aria-hidden="true"><div class="frame" id="frame"><img id="img" alt=""><svg id="veil"></svg></div><div class="hint" id="hint">Scroll to go through the steps</div><a class="full" id="full" href="#">Open full size</a></div>
+    <div id="steps"></div>
+  </div>
+  <div class="endcard">
+    <h2 style="margin:0 0 6px;font-size:24px">See it live</h2>
+    <p class="muted" style="margin:0">The demo runs locally with Docker: Odoo 18 Community, n8n, a test mailbox and OCR. Code: <a href="https://github.com/samaistudio/InboxToOdoo">github.com/samaistudio/InboxToOdoo</a>. A live demo or a code walkthrough is available on request.</p>
+    <div class="actions"><a class="btn primary" href="mailto:contact.samzeidi@gmail.com?subject=InboxToOdoo">Email Sam Zeidi</a><a class="btn" href="./">Back to the product page</a></div>
+  </div>
+</main>
+<footer><div class="wrap">Project by Sam Zeidi, Köln · contact.samzeidi@gmail.com · All companies, people and numbers in the demo are fictional. Keys: ← → move between steps.</div></footer>
+<script>
+const STEPS = [
+ {
+  "title": "Invoices arrive in the mailbox",
+  "intro": "Suppliers send invoices to the invoice mailbox: PDFs, e-invoices and one scanned paper invoice. Here it is a local test mailbox; in a company it is their normal Outlook or Gmail.",
+  "img": "assets/tut-1-inbox.png",
+  "w": 1025,
+  "h": 693,
+  "notes": [
+   {
+    "t": "Every new mail is picked up",
+    "d": "A small workflow checks the mailbox every minute and hands each attachment to the invoice check.",
+    "r": [
+     312,
+     10,
+     718,
+     672
+    ]
+   },
+   {
+    "t": "Two invoices arrive twice, on purpose",
+    "d": "The e-invoice RE-2026-1219 is sent again, and RE-2026-1187 comes back as a copy further down. One of each pair should be stopped as a duplicate; step 2 shows what this run did.",
+    "r": [
+     0,
+     8,
+     1024,
+     282
+    ],
+    "parts": [
+     [
+      0,
+      8,
+      1024,
+      56
+     ],
+     [
+      0,
+      234,
+      1024,
+      56
+     ]
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-1-inbox-m.png",
+   "w": 390,
+   "h": 1041,
+   "notes": [
+    {
+     "r": [
+      4,
+      14,
+      378,
+      1012
+     ]
+    },
+    {
+     "r": [
+      -2,
+      8,
+      390,
+      427
+     ],
+     "parts": [
+      [
+       -2,
+       8,
+       390,
+       85
+      ],
+      [
+       -2,
+       350,
+       390,
+       85
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "Accounts gets one mail per invoice",
+  "intro": "The subject already says the verdict, the supplier, the invoice number and the amount: “Buchbar” (ready to book), “Abweichung” (difference) or “Gestoppt” (stopped).",
+  "img": "assets/tut-2-approvals.png",
+  "w": 1025,
+  "h": 693,
+  "notes": [
+   {
+    "t": "Sorted at a glance",
+    "d": "Twelve invoice mails, three verdicts. Only the differences and the stops need a person to read further. This run checked the invoices in parallel, so three verdicts differ from the test table: the copy of RE-2026-1187 got Buchbar and the original Gestoppt, and LW-50288 found two open orders (see Limits).",
+    "r": [
+     459,
+     21,
+     69,
+     631
+    ],
+    "parts": [
+     [
+      459,
+      21,
+      49,
+      11
+     ],
+     [
+      459,
+      77,
+      44,
+      11
+     ],
+     [
+      459,
+      134,
+      44,
+      11
+     ],
+     [
+      459,
+      190,
+      69,
+      11
+     ],
+     [
+      459,
+      246,
+      69,
+      11
+     ],
+     [
+      459,
+      303,
+      69,
+      11
+     ],
+     [
+      459,
+      359,
+      49,
+      11
+     ],
+     [
+      459,
+      416,
+      69,
+      11
+     ],
+     [
+      459,
+      472,
+      44,
+      11
+     ],
+     [
+      459,
+      528,
+      69,
+      11
+     ],
+     [
+      459,
+      585,
+      49,
+      11
+     ],
+     [
+      459,
+      641,
+      49,
+      11
+     ]
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-2-approvals-m.png",
+   "w": 390,
+   "h": 1041,
+   "notes": [
+    {
+     "r": [
+      154,
+      50,
+      69,
+      950
+     ],
+     "parts": [
+      [
+       154,
+       50,
+       49,
+       11
+      ],
+      [
+       154,
+       135,
+       44,
+       11
+      ],
+      [
+       154,
+       221,
+       44,
+       11
+      ],
+      [
+       154,
+       306,
+       69,
+       11
+      ],
+      [
+       154,
+       392,
+       69,
+       11
+      ],
+      [
+       154,
+       477,
+       69,
+       11
+      ],
+      [
+       154,
+       562,
+       49,
+       11
+      ],
+      [
+       154,
+       648,
+       69,
+       11
+      ],
+      [
+       154,
+       733,
+       44,
+       11
+      ],
+      [
+       154,
+       818,
+       69,
+       11
+      ],
+      [
+       154,
+       904,
+       49,
+       11
+      ],
+      [
+       154,
+       989,
+       49,
+       11
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "An invoice with a price difference",
+  "intro": "This supplier charged more than agreed in the purchase order.",
+  "img": "assets/tut-3-invoice.png",
+  "w": 760,
+  "h": 1530,
+  "notes": [
+   {
+    "t": "The verdict and the reason",
+    "d": "One price is 7.2 % above the order. The tolerance is 2 %, so the invoice is flagged.",
+    "r": [
+     73,
+     80,
+     614,
+     92
+    ]
+   },
+   {
+    "t": "Order, receipt and invoice side by side",
+    "d": "Ordered, delivered, already billed and billed now, for every line. Only the cell that breaks a rule is marked.",
+    "r": [
+     73,
+     325,
+     614,
+     160
+    ]
+   },
+   {
+    "t": "The expected next step is the filled button",
+    "d": "Send the drafted query to the supplier. Booking anyway and discarding are there too. Nothing happens before a click.",
+    "r": [
+     73,
+     1324,
+     528,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-3-invoice-m.png",
+   "w": 390,
+   "h": 2064,
+   "notes": [
+    {
+     "r": [
+      21,
+      62,
+      348,
+      138
+     ]
+    },
+    {
+     "r": [
+      21,
+      419,
+      348,
+      193
+     ]
+    },
+    {
+     "r": [
+      21,
+      1742,
+      348,
+      148
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The query to the supplier is already written",
+  "intro": "For a difference, the AI drafts a short, factual e-mail to the supplier: the numbers, what is wrong and what is needed.",
+  "img": "assets/tut-4-query.png",
+  "w": 760,
+  "h": 1530,
+  "notes": [
+   {
+    "t": "Drafted, not sent",
+    "d": "It goes out only after the click on “Rückfrage an Lieferanten senden”. The invoice stays a draft in Odoo until the correction arrives.",
+    "r": [
+     73,
+     581,
+     614,
+     429
+    ]
+   },
+   {
+    "t": "How it was decided",
+    "d": "Tolerance, fixed checks, how the document was read and which AI was used. The AI runs locally here, so no data leaves the machine.",
+    "r": [
+     73,
+     1075,
+     614,
+     221
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-3-invoice-m.png",
+   "w": 390,
+   "h": 2064,
+   "notes": [
+    {
+     "r": [
+      21,
+      729,
+      348,
+      546
+     ]
+    },
+    {
+     "r": [
+      21,
+      1340,
+      348,
+      374
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "A changed bank account stops everything",
+  "intro": "The invoice asks for payment to a new bank account. That is one of the most common invoice frauds, so this invoice is not even drafted.",
+  "img": "assets/tut-5-fraud.png",
+  "w": 760,
+  "h": 1123,
+  "notes": [
+   {
+    "t": "Compared with Odoo, not with the e-mail",
+    "d": "The account on the invoice is shown above the one stored in Odoo, in groups of four. The advice is to call a number already known, never to reply.",
+    "r": [
+     73,
+     149,
+     614,
+     240
+    ]
+   },
+   {
+    "t": "No booking button",
+    "d": "Only “Als erledigt markieren”. A stopped invoice cannot be booked from here by mistake.",
+    "r": [
+     73,
+     956,
+     200,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-5-fraud-m.png",
+   "w": 390,
+   "h": 1411,
+   "notes": [
+    {
+     "r": [
+      21,
+      131,
+      348,
+      338
+     ]
+    },
+    {
+     "r": [
+      21,
+      1250,
+      348,
+      44
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "E-invoices are read by Odoo itself",
+  "intro": "XRechnung and ZUGFeRD invoices carry their data inside. Odoo Community reads them, so no AI is needed; the automation adds the checks around it.",
+  "img": "assets/tut-6-einvoice.png",
+  "w": 760,
+  "h": 922,
+  "notes": [
+   {
+    "t": "Everything matches",
+    "d": "Order, goods receipt and invoice agree; sums, VAT ID and IBAN were checked. Booking is the filled button.",
+    "r": [
+     73,
+     149,
+     614,
+     46
+    ]
+   },
+   {
+    "t": "How it was read",
+    "d": "“E-Rechnung (XRechnung UBL), von Odoo selbst eingelesen, ohne KI”. PDFs are read by the AI, paper scans by OCR first.",
+    "r": [
+     73,
+     628,
+     614,
+     40
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-6-einvoice-m.png",
+   "w": 390,
+   "h": 1143,
+   "notes": [
+    {
+     "r": [
+      21,
+      131,
+      348,
+      46
+     ]
+    },
+    {
+     "r": [
+      21,
+      759,
+      348,
+      83
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The draft bill in Odoo",
+  "intro": "The invoice from step 3 (LW-50231) as a draft vendor bill in Odoo; it stays a draft while the query to the supplier is open. Odoo's interface runs in English here; the company data is German.",
+  "img": "assets/tut-7-odoo.png",
+  "w": 1120,
+  "h": 880,
+  "notes": [
+   {
+    "t": "Linked to the purchase order",
+    "d": "The bill points to order P00002, so Odoo's own reports see what was ordered, received and billed.",
+    "r": [
+     506,
+     54,
+     108,
+     33
+    ]
+   },
+   {
+    "t": "The lines as invoiced",
+    "d": "The 20.90 price stays as the supplier billed it. The bill stays a draft while the query to the supplier is open.",
+    "r": [
+     41,
+     559,
+     1038,
+     194
+    ]
+   },
+   {
+    "t": "Written by the automation",
+    "d": "A note on every bill says which file and which mail it came from.",
+    "r": [
+     41,
+     758,
+     681,
+     46
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-7-odoo-m.png",
+   "w": 390,
+   "h": 1560,
+   "notes": [
+    null,
+    {
+     "r": [
+      16,
+      969,
+      358,
+      321
+     ]
+    },
+    {
+     "r": [
+      16,
+      1441,
+      358,
+      66
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "A complaint, decided by rule",
+  "intro": "A customer writes that the display was cracked on arrival and wants her money back.",
+  "img": "assets/tut-8-complaint.png",
+  "w": 760,
+  "h": 1811,
+  "notes": [
+   {
+    "t": "The facts from Odoo",
+    "d": "Order, product, delivery date, warranty, amount with VAT. The AI only read the e-mail; these values come from Odoo.",
+    "r": [
+     73,
+     210,
+     614,
+     320
+    ]
+   },
+   {
+    "t": "Her own words",
+    "d": "The original e-mail is shown, so the person who approves can check what the AI understood.",
+    "r": [
+     73,
+     626,
+     614,
+     251
+    ]
+   },
+   {
+    "t": "The reply, ready to send",
+    "d": "A credit note of 141.61 € is prepared in Odoo and the reply is written in the company's tone.",
+    "r": [
+     73,
+     936,
+     614,
+     476
+    ]
+   },
+   {
+    "t": "Approve or reject",
+    "d": "Approve books the credit note and sends the reply. Reject cancels the draft and sends nothing.",
+    "r": [
+     73,
+     1625,
+     319,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-8-complaint-m.png",
+   "w": 390,
+   "h": 2353,
+   "notes": [
+    {
+     "r": [
+      21,
+      238,
+      348,
+      497
+     ]
+    },
+    {
+     "r": [
+      21,
+      831,
+      348,
+      316
+     ]
+    },
+    {
+     "r": [
+      21,
+      1227,
+      348,
+      592
+     ]
+    },
+    {
+     "r": [
+      21,
+      2119,
+      348,
+      98
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The company sets the rules",
+  "intro": "A plain form, no code: how replies are written, how complaints are decided and which AI is used. Every field shows the value in use; a choice marked “(aktuell)” keeps it.",
+  "img": "assets/tut-9-settings.png",
+  "w": 900,
+  "h": 2679,
+  "notes": [
+   {
+    "t": "How replies sound",
+    "d": "Language, Sie or du, tone, length, when to apologise, closing and signature.",
+    "r": [
+     175,
+     290,
+     550,
+     871
+    ]
+   },
+   {
+    "t": "Which AI",
+    "d": "A local model, a cloud provider, or the AI key already set up in Odoo. The form says where the data goes. Keys stay in a local file, never in this form.",
+    "r": [
+     175,
+     1980,
+     550,
+     289
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-9-settings-m.png",
+   "w": 390,
+   "h": 2790,
+   "notes": [
+    {
+     "r": [
+      26,
+      264,
+      338,
+      871
+     ]
+    },
+    {
+     "r": [
+      26,
+      2059,
+      338,
+      306
+     ]
+    }
+   ]
+  }
+ }
+];
+const $ = id => document.getElementById(id);
+const PAD = 8;
+// a light veil, so the rest of the screen stays readable: dark ink at 14 % on a light page, black at 30 % in dark mode
+const VEIL = matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(0,0,0,.3)' : 'rgba(29,28,26,.14)';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// one SVG overlay: a light veil with a hole only where the active note points (one or more parts), outlined.
+// active = -1 (the stacked phone view) cuts out every note, so the numbers still have something to point at.
+const veil = (s, active) => {
+  const R = r => [r[0] - PAD, r[1] - PAD, r[2] + 2 * PAD, r[3] + 2 * PAD];
+  const parts = s.notes.flatMap((n, k) => (active === -1 || k === active) ? (n.parts || [n.r]).map(R) : []);
+  const holes = parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="black"/>`).join('');
+  const lines = parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="none" stroke="#1d1c1a" stroke-width="${active === -1 ? 1.5 : 3}" vector-effect="non-scaling-stroke"/>`).join('');
+  return `<defs><mask id="m${s.i}${active}"><rect width="${s.w}" height="${s.h}" fill="white"/>${holes}</mask></defs><rect width="${s.w}" height="${s.h}" fill="${VEIL}" mask="url(#m${s.i}${active})"/>${lines}`;
+};
+// number markers sit in the gutter left of the outlined box, level with its top edge, so they never cover content
+// (boxes that start at the very left edge get the marker in the first 26 px, where the screens have only padding)
+const marks = (s, active) => s.notes.map((n, k) => { const x = Math.max(13, n.r[0] - PAD - 17), y = n.r[1] - PAD + 13;
+  return `<div class="mark${k === active ? ' on' : ''}" style="left:${x / s.w * 100}%;top:${y / s.h * 100}%">${k + 1}</div>`; }).join('');
+
+// phones: under each note a cut-out of the part it explains, from the 390 px capture where there is one
+// (it reflows like a phone mail and stays readable), else from the desktop screen
+const crop = (s, k) => {
+  // a note can ask for the desktop screen (m.notes[k] null), e.g. when the phone layout hides the part it explains
+  const useM = s.m && s.m.notes[k], P = useM ? s.m : s, n = P.notes[k], pad = 12;
+  let [x, y, w, h] = useM ? [0, n.r[1] - pad, P.w, n.r[3] + 2 * pad] : [n.r[0] - pad, n.r[1] - pad, n.r[2] + 2 * pad, n.r[3] + 2 * pad];
+  // a small part of a desktop screen is shown with some context around it, not blown up
+  if (!useM && w < 360) { x = Math.max(0, x - (360 - w) / 2); w = 360; }
+  x = Math.max(0, x); y = Math.max(0, y); w = Math.min(P.w - x, w); h = Math.min(P.h - y, h);
+  const lines = (n.parts || [n.r]).map(([a, b, c, d]) => [Math.max(2, a - PAD), b - PAD, Math.min(P.w - 2, a + c + PAD), d + 2 * PAD])
+    .map(([a, b, r, d]) => `<rect x="${a}" y="${b}" width="${r - a}" height="${d}" rx="6" fill="none" stroke="#1d1c1a" stroke-width="2" vector-effect="non-scaling-stroke"/>`).join('');
+  return `<a class="crop" href="${P.img}" title="Open the full screenshot" style="aspect-ratio:${w} / ${h}"><span style="width:${P.w / w * 100}%;transform:translate(${-x / P.w * 100}%, ${-y / P.h * 100}%)"><img src="${P.img}" alt="" loading="lazy" width="${P.w}" height="${P.h}"><svg viewBox="0 0 ${P.w} ${P.h}">${lines}</svg></span></a>`;
+};
+STEPS.forEach((s, i) => { s.i = i; new Image().src = s.img; });
+$('index').innerHTML = STEPS.map((s, i) => `<a href="#step-${i + 1}" data-i="${i}" title="${s.title}">${i + 1}</a>`).join('');
+$('steps').innerHTML = STEPS.map((s, i) => `<article class="step" id="step-${i + 1}">
+  <div class="k">Step ${i + 1} of ${STEPS.length}</div><h2>${s.title}</h2><p>${s.intro || ''}</p>
+  <div class="inline"><a class="pic" href="${s.img}" title="Open the full-size screenshot"><img src="${s.img}" alt="${s.title}" loading="lazy" width="${s.w}" height="${s.h}"><svg viewBox="0 0 ${s.w} ${s.h}" preserveAspectRatio="none">${veil(s, -1)}</svg>${marks(s, -1)}</a></div>
+  ${s.notes.map((n, k) => `<div class="note" data-s="${i}" data-n="${k}"><div class="n">${k + 1}</div><div><b>${n.t}</b><span>${n.d}</span></div>${crop(s, k)}</div>`).join('')}
+  <p class="whole"><a href="${(s.m || s).img}">Open the whole screenshot</a></p>
+</article>`).join('');
+
+const notes = [...document.querySelectorAll('.note')];
+let cur = { s: -1, n: -1 };
+function show(si, ni) {
+  if (si === cur.s && ni === cur.n) return;
+  const s = STEPS[si], frame = $('frame'), changed = si !== cur.s, first = cur.s === -1;
+  cur = { s: si, n: ni };
+  notes.forEach(e => e.classList.toggle('on', +e.dataset.s === si && +e.dataset.n === ni));
+  document.querySelectorAll('#index a').forEach(a => a.classList.toggle('on', +a.dataset.i === si));
+  const place = () => {
+    const box = $('stage').getBoundingClientRect(), m = 16;
+    const sc = Math.min(1, (box.width - 2 * m) / s.w);
+    const W = s.w * sc, H = s.h * sc, r = s.notes[ni].r;
+    const x = (box.width - W) / 2;
+    let y = m; // top-aligned, so a short screen does not float in the middle
+    if (H > box.height - 2 * m) { y = box.height / 2 - (r[1] + r[3] / 2) * sc; y = Math.min(m, Math.max(box.height - H - m, y)); }
+    frame.style.width = s.w + 'px'; frame.style.height = s.h + 'px';
+    frame.style.transform = `translate(${x}px, ${y}px) scale(${sc})`;
+    $('veil').setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+    $('veil').innerHTML = veil(s, ni);
+    frame.querySelectorAll('.mark').forEach(e => e.remove());
+    frame.insertAdjacentHTML('beforeend', marks(s, ni));
+  };
+  $('full').href = s.img;
+  if (changed && !reduce && !first) {
+    frame.classList.add('fade');
+    setTimeout(() => { frame.style.transition = 'none'; $('img').src = s.img; place(); frame.offsetWidth; frame.style.transition = ''; frame.classList.remove('fade'); }, 180);
+  } else { if (changed) $('img').src = s.img; place(); }
+}
+// the active note is the one closest to a line a little above the middle of the window
+function pick() {
+  const line = innerHeight * 0.42;
+  let best = notes[0], d = Infinity;
+  for (const e of notes) { const r = e.getBoundingClientRect(); const dd = Math.abs((r.top + r.bottom) / 2 - line); if (dd < d) { d = dd; best = e; } }
+  show(+best.dataset.s, +best.dataset.n);
+}
+let ticking = false;
+addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; pick(); }); } if (scrollY > 200) { $('hint').style.display = 'none'; $('full').style.display = 'block'; } }, { passive: true });
+addEventListener('resize', () => { const c = cur; cur = { s: c.s, n: -1 }; show(c.s, c.n); });
+const go = el => el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+notes.forEach(e => e.addEventListener('click', () => { if (innerWidth >= 1100) go(e); }));
+$('index').addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault();
+  const el = $('step-' + (+a.dataset.i + 1)); el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); history.replaceState(null, '', a.getAttribute('href')); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const i = Math.max(0, Math.min(STEPS.length - 1, cur.s + (e.key === 'ArrowRight' ? 1 : -1)));
+  $('step-' + (i + 1)).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+});
+show(0, 0);
+if (location.hash) setTimeout(pick, 300);
+</script>
+</body>
+</html>

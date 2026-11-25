@@ -1,0 +1,1 @@
+{"order_ref": null, "product_hint": "Werkzeugkoffer", "quantity_affected": 1, "problem_type": "defekt", "customer_wants": "unklar", "urgency": "normal", "language": "de", "formality_used": "du", "summary": "Bei einem der kürzlich gelieferten Werkzeugkoffer ist beim ersten Anheben der Griff abgebrochen."}

@@ -1,0 +1,31 @@
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --color-background: #efeeea; --color-card-bg: #ffffff; --color-card-border: #e2e0db; --color-card-shadow: transparent;
+  --box-shadow-card: none; --border-radius-card: 4px; --border-radius-input: 4px; --padding-card: 32px;
+  --container-width: 600px; --padding-container-top: 40px;
+  --color-header: #1d1c1a; --font-size-header: 24px; --color-html-text: #5c5a55; --font-size-paragraph: 15px;
+  --color-label: #1d1c1a; --font-size-label: 14px; --color-input-border: #c9c6bf; --color-input-text: #1d1c1a;
+  --font-size-input: 16px; --color-focus-border: #1d1c1a; --color-required: #5c5a55; --color-error: #a3231a;
+  --font-size-error: 13px; --color-submit-btn-bg: #1d1c1a; --color-submit-btn-text: #ffffff; --submit-btn-height: 48px;
+  --opacity-placeholder: 0.6;
+}
+.form-header { text-align: left; border-bottom: 1px solid #e2e0db; padding-bottom: 20px; margin-bottom: 8px; }
+.form-header h1 { font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
+.form-header p { text-align: left; line-height: 1.55; margin: 0; color: #5c5a55; opacity: 1; }
+form label { font-weight: 500; }
+form .form-input, form select, form textarea { min-height: 48px; color: #1d1c1a; }
+.select-input, form .form-input, form textarea { box-shadow: none; }
+form input:focus, form textarea:focus, .select-input:focus-within { outline: 2px solid #1d1c1a; outline-offset: 1px; }
+#submit-btn { border-radius: 4px; font-size: 16px; font-weight: 600; }
+.form-group.html { margin: 22px 0 0; padding: 24px 0 10px; border-top: 1px solid #e2e0db; }
+.inputs-wrapper > .form-group.html:first-child { margin-top: -8px; padding-top: 0; border-top: 0; }
+div.html h3 { font-size: 17px; font-weight: 600; color: #1d1c1a; margin: 0 0 4px; }
+div.html p { font-size: 14px; line-height: 1.5; color: #5c5a55; margin: 0; }
+div.html p:last-of-type { margin-bottom: 12px; }
+.inputs-wrapper:not(:has(*)) { display: none; }
+.inputs-wrapper:not(:has(*)) + #submit-btn { margin-top: 24px; }
+div.html p + p { margin-top: 6px; }
+select option[value=""][disabled] { display: none; }
+.form-label.form-required::after { color: #5c5a55; }
+#submit-btn:hover { background: #3a3835; opacity: 1; }
+form textarea, textarea.form-input { min-height: 112px !important; resize: vertical; }

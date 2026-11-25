@@ -1,0 +1,1 @@
+{"order_ref":"RW-2026-0412","product_hint":"SB-1","quantity_affected":2,"problem_type":"beschaedigt","customer_wants":"gutschrift","urgency":"normal","language":"de","formality_used":"Sie","summary":"Zwei von zehn Schutzbrillen SB-1 kamen zerkratzt an, der Kunde möchte eine Gutschrift."}

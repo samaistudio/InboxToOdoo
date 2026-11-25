@@ -1,0 +1,227 @@
+{
+ "id": "rwEinstellung003",
+ "name": "Reklamation: Einstellungen",
+ "nodes": [
+  {
+   "id": "5217f15b-d987-50ab-97e1-e7ed3a99087d",
+   "name": "Einstellungsmenü",
+   "type": "n8n-nodes-base.formTrigger",
+   "typeVersion": 2.2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "formTitle": "Reklamationen: Einstellungen",
+    "formDescription": "Lädt die Werte, die gerade gelten.",
+    "formFields": {
+     "values": []
+    },
+    "responseMode": "onReceived",
+    "options": {
+     "buttonLabel": "Aktuelle Einstellungen laden",
+     "appendAttribution": false,
+     "customCss": ":root {\n  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\n  --color-background: #efeeea; --color-card-bg: #ffffff; --color-card-border: #e2e0db; --color-card-shadow: transparent;\n  --box-shadow-card: none; --border-radius-card: 4px; --border-radius-input: 4px; --padding-card: 32px;\n  --container-width: 600px; --padding-container-top: 40px;\n  --color-header: #1d1c1a; --font-size-header: 24px; --color-html-text: #5c5a55; --font-size-paragraph: 15px;\n  --color-label: #1d1c1a; --font-size-label: 14px; --color-input-border: #c9c6bf; --color-input-text: #1d1c1a;\n  --font-size-input: 16px; --color-focus-border: #1d1c1a; --color-required: #5c5a55; --color-error: #a3231a;\n  --font-size-error: 13px; --color-submit-btn-bg: #1d1c1a; --color-submit-btn-text: #ffffff; --submit-btn-height: 48px;\n  --opacity-placeholder: 0.6;\n}\n.form-header { text-align: left; border-bottom: 1px solid #e2e0db; padding-bottom: 20px; margin-bottom: 8px; }\n.form-header h1 { font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }\n.form-header p { text-align: left; line-height: 1.55; margin: 0; color: #5c5a55; opacity: 1; }\nform label { font-weight: 500; }\nform .form-input, form select, form textarea { min-height: 48px; color: #1d1c1a; }\n.select-input, form .form-input, form textarea { box-shadow: none; }\nform input:focus, form textarea:focus, .select-input:focus-within { outline: 2px solid #1d1c1a; outline-offset: 1px; }\n#submit-btn { border-radius: 4px; font-size: 16px; font-weight: 600; }\n.form-group.html { margin: 22px 0 0; padding: 24px 0 10px; border-top: 1px solid #e2e0db; }\n.inputs-wrapper > .form-group.html:first-child { margin-top: -8px; padding-top: 0; border-top: 0; }\ndiv.html h3 { font-size: 17px; font-weight: 600; color: #1d1c1a; margin: 0 0 4px; }\ndiv.html p { font-size: 14px; line-height: 1.5; color: #5c5a55; margin: 0; }\ndiv.html p:last-of-type { margin-bottom: 12px; }\n.inputs-wrapper:not(:has(*)) { display: none; }\n.inputs-wrapper:not(:has(*)) + #submit-btn { margin-top: 24px; }\ndiv.html p + p { margin-top: 6px; }\nselect option[value=\"\"][disabled] { display: none; }\n.form-label.form-required::after { color: #5c5a55; }\n#submit-btn:hover { background: #3a3835; opacity: 1; }\nform textarea, textarea.form-input { min-height: 112px !important; resize: vertical; }\n"
+    }
+   },
+   "webhookId": "einstellungen"
+  },
+  {
+   "id": "cb511de4-079d-58a9-b04c-f434c2da1f6e",
+   "name": "Einstellungen lesen",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    220,
+    300
+   ],
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "e2f20589-f121-587c-9e0e-58b72b7cf5a3",
+   "name": "Einstellungen",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1,
+   "position": [
+    440,
+    300
+   ],
+   "parameters": {
+    "operation": "fromJson",
+    "options": {}
+   }
+  },
+  {
+   "id": "11288bfb-f8ef-5dfc-be65-9722f7b2ba6d",
+   "name": "Formular vorbereiten",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Node \"Formular vorbereiten\": builds the fields of settings page 2 from the stored settings.\n// - Dropdowns start on \"<value in use> (aktuell)\". The save step has no mapping for that option, so the stored value is kept.\n// - Text, number and e-mail fields are filled with the value in use, so saving without a change writes the same value back.\n// - Fields marked prefill: false stay empty and the placeholder says what is in use: the AI model and address (empty =\n//   keep, or the new provider's default) and the multi-line fields (a browser would send their line breaks as CRLF).\n//   Careful: an empty \"Eigene Regeln\" clears the company's rules; its placeholder says so.\n// Labels stay as they are: the save step reads the answers by label.\nconst s = $('Einstellungen').first().json.data || {};\nconst KEEP = 'Unverändert lassen';\nconst shown = f => {\n  const v = s[f.key];\n  const t = v === undefined || v === null || v === '' ? '' : String((f.labels || {})[v] ?? v).replace(/\\s*\\n\\s*/g, ' · ');\n  return t || f.empty || 'nicht gesetzt';\n};\nconst fields = [{\"fieldLabel\": \"Abschnitt Antwortstil\", \"fieldType\": \"html\", \"html\": \"<h3>Antwortstil</h3><p>Wie die Antwort an den Kunden klingt.</p>\"}, {\"fieldLabel\": \"Sprache der Antwort\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"Sprache des Kunden übernehmen\"}, {\"option\": \"Immer Deutsch\"}, {\"option\": \"Immer Englisch (US)\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"language\", \"labels\": {\"auto\": \"Sprache des Kunden übernehmen\", \"de\": \"Immer Deutsch\", \"en-US\": \"Immer Englisch (US)\"}}, {\"fieldLabel\": \"Anrede\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"Sie\"}, {\"option\": \"du\"}, {\"option\": \"Wie der Kunde\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"formality\", \"labels\": {\"Sie\": \"Sie\", \"du\": \"du\", \"auto\": \"Wie der Kunde\"}}, {\"fieldLabel\": \"Ton\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"sachlich\"}, {\"option\": \"freundlich\"}, {\"option\": \"herzlich\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"tone\", \"labels\": {}}, {\"fieldLabel\": \"Länge\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"kurz\"}, {\"option\": \"normal\"}, {\"option\": \"ausführlich\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"length\", \"labels\": {\"short\": \"kurz\", \"normal\": \"normal\", \"detailed\": \"ausführlich\"}}, {\"fieldLabel\": \"Entschuldigung\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"Nur wenn wir schuld sind\"}, {\"option\": \"Immer\"}, {\"option\": \"Nie\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"apology\", \"labels\": {\"when_our_fault\": \"Nur wenn wir schuld sind\", \"always\": \"Immer\", \"never\": \"Nie\"}}, {\"fieldLabel\": \"Grußformel Deutsch\", \"key\": \"closing_de\", \"empty\": \"\", \"prefill\": true}, {\"fieldLabel\": \"Grußformel Englisch\", \"key\": \"closing_en\", \"empty\": \"\", \"prefill\": true}, {\"fieldLabel\": \"Signatur\", \"fieldType\": \"textarea\", \"key\": \"signature\", \"empty\": \"\", \"prefill\": false}, {\"fieldLabel\": \"Eigene Regeln\", \"fieldType\": \"textarea\", \"key\": \"custom_rules\", \"empty\": \"keine\", \"prefill\": false, \"hint\": \"leer = keine eigenen Regeln\"}, {\"fieldLabel\": \"Abschnitt Entscheidungen\", \"fieldType\": \"html\", \"html\": \"<h3>Entscheidungen</h3><p>Welche Lösung der Assistent vorschlägt. Die Regeln selbst stehen fest im Ablauf.</p>\"}, {\"fieldLabel\": \"Standardlösung bei Defekt\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"Ersatzlieferung\"}, {\"option\": \"Gutschrift\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"default_remedy\", \"labels\": {\"replacement\": \"Ersatzlieferung\", \"credit\": \"Gutschrift\"}}, {\"fieldLabel\": \"Gewährleistung Privatkunden (Monate)\", \"fieldType\": \"number\", \"key\": \"warranty_months_b2c\", \"empty\": \"\", \"prefill\": true}, {\"fieldLabel\": \"Gewährleistung Firmenkunden (Monate)\", \"fieldType\": \"number\", \"key\": \"warranty_months_b2b\", \"empty\": \"\", \"prefill\": true}, {\"fieldLabel\": \"Abschnitt KI\", \"fieldType\": \"html\", \"html\": \"<h3>KI</h3><p>Testmodell, Ollama und LM Studio laufen auf diesem Rechner: keine Daten gehen nach außen. Bei einem Cloud-Anbieter gehen der Text der Reklamation und die Rechnungsdaten an diesen Anbieter. API-Schlüssel stehen nicht in diesem Formular, sondern in der Datei .env.local auf dem Server. Modell und Adresse leer lassen: es bleibt der bisherige Wert, bei einem neuen Anbieter dessen Standard.</p>\"}, {\"fieldLabel\": \"KI-Anbieter\", \"fieldType\": \"dropdown\", \"fieldOptions\": {\"values\": [{\"option\": \"Unverändert lassen\"}, {\"option\": \"Testmodell (offline)\"}, {\"option\": \"Wie in Odoo eingerichtet\"}, {\"option\": \"Ollama (lokal)\"}, {\"option\": \"LM Studio (lokal)\"}, {\"option\": \"OpenAI\"}, {\"option\": \"Anthropic Claude\"}, {\"option\": \"Google Gemini\"}, {\"option\": \"Mistral\"}, {\"option\": \"Azure OpenAI\"}, {\"option\": \"Eigener Endpunkt\"}]}, \"requiredField\": false, \"defaultValue\": \"Unverändert lassen\", \"key\": \"llm_provider\", \"labels\": {\"mock\": \"Testmodell (offline)\", \"odoo\": \"Wie in Odoo eingerichtet\", \"ollama\": \"Ollama (lokal)\", \"lmstudio\": \"LM Studio (lokal)\", \"openai\": \"OpenAI\", \"anthropic\": \"Anthropic Claude\", \"gemini\": \"Google Gemini\", \"mistral\": \"Mistral\", \"azure\": \"Azure OpenAI\", \"custom\": \"Eigener Endpunkt\"}}, {\"fieldLabel\": \"KI-Modell\", \"key\": \"llm_model\", \"empty\": \"Standard\", \"prefill\": false}, {\"fieldLabel\": \"KI-Adresse (nur Azure, eigener Endpunkt oder entfernter Ollama)\", \"key\": \"llm_url\", \"empty\": \"keine\", \"prefill\": false}, {\"fieldLabel\": \"Abschnitt Freigabe\", \"fieldType\": \"html\", \"html\": \"<h3>Freigabe</h3><p>Wer die Freigabe-Mails bekommt.</p>\"}, {\"fieldLabel\": \"Freigabe an (E-Mail)\", \"fieldType\": \"email\", \"key\": \"approval_email\", \"empty\": \"\", \"prefill\": true}].flatMap(f => {\n  if (!f.key) return [f];\n  const { key, labels, empty, prefill, hint, ...o } = f;\n  const cur = shown(f);\n  if (o.fieldType === 'dropdown') {\n    const k = `${cur} (aktuell)`;\n    const values = o.fieldOptions.values.filter(v => v.option !== cur).map(v => (v.option === KEEP ? { option: k } : v));\n    return [{ ...o, fieldOptions: { values }, defaultValue: k }];\n  }\n  if (prefill === false) return [{ ...o, placeholder: `${hint || 'leer = wie bisher'} · jetzt: ${cur}` }];\n  const v = s[key];\n  return [{ ...o, defaultValue: v === undefined || v === null ? '' : v }];\n});\nreturn [{ json: { fields } }];"
+   }
+  },
+  {
+   "id": "1e44b5d6-fa67-5e5b-9e48-69c96028430c",
+   "name": "Einstellungsmenü ändern",
+   "type": "n8n-nodes-base.form",
+   "typeVersion": 1,
+   "position": [
+    880,
+    300
+   ],
+   "parameters": {
+    "operation": "page",
+    "defineForm": "json",
+    "jsonOutput": "={{ JSON.stringify($json.fields) }}",
+    "options": {
+     "formTitle": "Reklamationen: Einstellungen",
+     "formDescription": "So schreibt und entscheidet der Assistent für Reklamationen. Jedes Feld zeigt den Wert, der gerade gilt; nur ändern, was sich ändern soll.",
+     "buttonLabel": "Speichern",
+     "customCss": ":root {\n  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\n  --color-background: #efeeea; --color-card-bg: #ffffff; --color-card-border: #e2e0db; --color-card-shadow: transparent;\n  --box-shadow-card: none; --border-radius-card: 4px; --border-radius-input: 4px; --padding-card: 32px;\n  --container-width: 600px; --padding-container-top: 40px;\n  --color-header: #1d1c1a; --font-size-header: 24px; --color-html-text: #5c5a55; --font-size-paragraph: 15px;\n  --color-label: #1d1c1a; --font-size-label: 14px; --color-input-border: #c9c6bf; --color-input-text: #1d1c1a;\n  --font-size-input: 16px; --color-focus-border: #1d1c1a; --color-required: #5c5a55; --color-error: #a3231a;\n  --font-size-error: 13px; --color-submit-btn-bg: #1d1c1a; --color-submit-btn-text: #ffffff; --submit-btn-height: 48px;\n  --opacity-placeholder: 0.6;\n}\n.form-header { text-align: left; border-bottom: 1px solid #e2e0db; padding-bottom: 20px; margin-bottom: 8px; }\n.form-header h1 { font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }\n.form-header p { text-align: left; line-height: 1.55; margin: 0; color: #5c5a55; opacity: 1; }\nform label { font-weight: 500; }\nform .form-input, form select, form textarea { min-height: 48px; color: #1d1c1a; }\n.select-input, form .form-input, form textarea { box-shadow: none; }\nform input:focus, form textarea:focus, .select-input:focus-within { outline: 2px solid #1d1c1a; outline-offset: 1px; }\n#submit-btn { border-radius: 4px; font-size: 16px; font-weight: 600; }\n.form-group.html { margin: 22px 0 0; padding: 24px 0 10px; border-top: 1px solid #e2e0db; }\n.inputs-wrapper > .form-group.html:first-child { margin-top: -8px; padding-top: 0; border-top: 0; }\ndiv.html h3 { font-size: 17px; font-weight: 600; color: #1d1c1a; margin: 0 0 4px; }\ndiv.html p { font-size: 14px; line-height: 1.5; color: #5c5a55; margin: 0; }\ndiv.html p:last-of-type { margin-bottom: 12px; }\n.inputs-wrapper:not(:has(*)) { display: none; }\n.inputs-wrapper:not(:has(*)) + #submit-btn { margin-top: 24px; }\ndiv.html p + p { margin-top: 6px; }\nselect option[value=\"\"][disabled] { display: none; }\n.form-label.form-required::after { color: #5c5a55; }\n#submit-btn:hover { background: #3a3835; opacity: 1; }\nform textarea, textarea.form-input { min-height: 112px !important; resize: vertical; }\n"
+    }
+   },
+   "webhookId": "einstellungen-seite"
+  },
+  {
+   "id": "1db11386-b70f-5e08-98f0-c767bf390681",
+   "name": "Neue Einstellungen",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const f = $('Einstellungsmenü ändern').first().json;\nconst old = $('Einstellungen').first().json.data;\nconst pick = (v, d) => (v === undefined || v === null || v === '') ? d : v;\nconst map = { 'Sprache des Kunden übernehmen': 'auto', 'Immer Deutsch': 'de', 'Immer Englisch (US)': 'en-US',\n  'Sie': 'Sie', 'du': 'du', 'Wie der Kunde': 'auto', 'sachlich': 'sachlich', 'freundlich': 'freundlich', 'herzlich': 'herzlich',\n  'kurz': 'short', 'normal': 'normal', 'ausführlich': 'detailed', 'Nur wenn wir schuld sind': 'when_our_fault', 'Immer': 'always', 'Nie': 'never',\n  'Ersatzlieferung': 'replacement', 'Gutschrift': 'credit',\n  'Testmodell (offline)': 'mock', 'Wie in Odoo eingerichtet': 'odoo', 'Ollama (lokal)': 'ollama', 'LM Studio (lokal)': 'lmstudio', 'OpenAI': 'openai',\n  'Anthropic Claude': 'anthropic', 'Google Gemini': 'gemini', 'Mistral': 'mistral', 'Azure OpenAI': 'azure', 'Eigener Endpunkt': 'custom' };\nconst s = { ...old,\n  language: map[f['Sprache der Antwort']] ?? old.language, formality: map[f['Anrede']] ?? old.formality, tone: map[f['Ton']] ?? old.tone,\n  length: map[f['Länge']] ?? old.length, apology: map[f['Entschuldigung']] ?? old.apology,\n  closing_de: pick(f['Grußformel Deutsch'], old.closing_de), closing_en: pick(f['Grußformel Englisch'], old.closing_en),\n  signature: pick(f['Signatur'], old.signature), custom_rules: f['Eigene Regeln'] ?? old.custom_rules,\n  default_remedy: map[f['Standardlösung bei Defekt']] ?? old.default_remedy,\n  warranty_months_b2c: Number(pick(f['Gewährleistung Privatkunden (Monate)'], old.warranty_months_b2c)),\n  warranty_months_b2b: Number(pick(f['Gewährleistung Firmenkunden (Monate)'], old.warranty_months_b2b)),\n  approval_email: pick(f['Freigabe an (E-Mail)'], old.approval_email),\n  llm_provider: map[f['KI-Anbieter']] ?? old.llm_provider };\nconst newProvider = s.llm_provider !== old.llm_provider;\ns.llm_model = pick(f['KI-Modell'], newProvider ? '' : old.llm_model);\ns.llm_url = pick(f['KI-Adresse (nur Azure, eigener Endpunkt oder entfernter Ollama)'], newProvider ? '' : old.llm_url);\nreturn [{ json: s, binary: { data: { data: Buffer.from(JSON.stringify(s, null, 1)).toString('base64'), mimeType: 'application/json', fileName: 'settings.json' } } }];"
+   }
+  },
+  {
+   "id": "06c11fd6-4b7c-5ca4-8940-884bbaec6f81",
+   "name": "Speichern",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    1320,
+    300
+   ],
+   "parameters": {
+    "operation": "write",
+    "fileName": "/files/data/settings.json",
+    "options": {}
+   }
+  },
+  {
+   "id": "f264d22a-441c-5a8b-834d-ea1739e0cf57",
+   "name": "Einstellungsmenü gespeichert",
+   "type": "n8n-nodes-base.form",
+   "typeVersion": 1,
+   "position": [
+    1540,
+    300
+   ],
+   "parameters": {
+    "operation": "completion",
+    "respondWith": "text",
+    "completionTitle": "Gespeichert",
+    "completionMessage": "Die nächste Reklamation nutzt die neuen Einstellungen.",
+    "options": {
+     "customCss": ":root {\n  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\n  --color-background: #efeeea; --color-card-bg: #ffffff; --color-card-border: #e2e0db; --color-card-shadow: transparent;\n  --box-shadow-card: none; --border-radius-card: 4px; --border-radius-input: 4px; --padding-card: 32px;\n  --container-width: 600px; --padding-container-top: 40px;\n  --color-header: #1d1c1a; --font-size-header: 24px; --color-html-text: #5c5a55; --font-size-paragraph: 15px;\n  --color-label: #1d1c1a; --font-size-label: 14px; --color-input-border: #c9c6bf; --color-input-text: #1d1c1a;\n  --font-size-input: 16px; --color-focus-border: #1d1c1a; --color-required: #5c5a55; --color-error: #a3231a;\n  --font-size-error: 13px; --color-submit-btn-bg: #1d1c1a; --color-submit-btn-text: #ffffff; --submit-btn-height: 48px;\n  --opacity-placeholder: 0.6;\n}\n.form-header { text-align: left; border-bottom: 1px solid #e2e0db; padding-bottom: 20px; margin-bottom: 8px; }\n.form-header h1 { font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }\n.form-header p { text-align: left; line-height: 1.55; margin: 0; color: #5c5a55; opacity: 1; }\nform label { font-weight: 500; }\nform .form-input, form select, form textarea { min-height: 48px; color: #1d1c1a; }\n.select-input, form .form-input, form textarea { box-shadow: none; }\nform input:focus, form textarea:focus, .select-input:focus-within { outline: 2px solid #1d1c1a; outline-offset: 1px; }\n#submit-btn { border-radius: 4px; font-size: 16px; font-weight: 600; }\n.form-group.html { margin: 22px 0 0; padding: 24px 0 10px; border-top: 1px solid #e2e0db; }\n.inputs-wrapper > .form-group.html:first-child { margin-top: -8px; padding-top: 0; border-top: 0; }\ndiv.html h3 { font-size: 17px; font-weight: 600; color: #1d1c1a; margin: 0 0 4px; }\ndiv.html p { font-size: 14px; line-height: 1.5; color: #5c5a55; margin: 0; }\ndiv.html p:last-of-type { margin-bottom: 12px; }\n.inputs-wrapper:not(:has(*)) { display: none; }\n.inputs-wrapper:not(:has(*)) + #submit-btn { margin-top: 24px; }\ndiv.html p + p { margin-top: 6px; }\nselect option[value=\"\"][disabled] { display: none; }\n.form-label.form-required::after { color: #5c5a55; }\n#submit-btn:hover { background: #3a3835; opacity: 1; }\nform textarea, textarea.form-input { min-height: 112px !important; resize: vertical; }\n"
+    }
+   },
+   "webhookId": "einstellungen-fertig"
+  }
+ ],
+ "connections": {
+  "Einstellungsmenü": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen lesen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen lesen": {
+   "main": [
+    [
+     {
+      "node": "Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Formular vorbereiten",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Formular vorbereiten": {
+   "main": [
+    [
+     {
+      "node": "Einstellungsmenü ändern",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Einstellungsmenü ändern": {
+   "main": [
+    [
+     {
+      "node": "Neue Einstellungen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Neue Einstellungen": {
+   "main": [
+    [
+     {
+      "node": "Speichern",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Speichern": {
+   "main": [
+    [
+     {
+      "node": "Einstellungsmenü gespeichert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ },
+ "pinData": {}
+}

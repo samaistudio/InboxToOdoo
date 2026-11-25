@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>frame</title>
+<style>
+html,body{margin:0;width:1920px;height:1080px;background:#e4e2dc;color:#1d1c1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;overflow:hidden}
+.card{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 180px}
+.card h1{font-size:84px;margin:0 0 22px;color:#1d1c1a;letter-spacing:-.015em;font-weight:650}
+.card p{font-size:36px;color:#5c5a55;margin:0;max-width:1300px;line-height:1.35}
+.card .small{font-size:26px;margin-top:48px}
+.step{position:absolute;inset:0}
+/* caption at the top: the bottom of the frame is where a browser draws the video controls */
+.cap{position:absolute;left:120px;right:120px;top:40px;display:flex;gap:28px;align-items:baseline}
+.cap b{font-size:38px;color:#1d1c1a;font-weight:650;white-space:nowrap}
+.cap span{font-size:30px;color:#5c5a55}
+.shotbox{position:absolute;left:50%;top:124px;transform:translateX(-50%)}
+.shotbox img{display:block;border:1px solid #d9d6cf;background:#fff}
+.shotbox svg{position:absolute;inset:0;width:100%;height:100%}
+</style></head><body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const kind = q.get('k');
+fetch('assets/tutorial.json').then(r => r.json()).then(steps => {
+  const root = document.getElementById('root');
+  if (kind === 'title') {
+    root.innerHTML = `<div class="card"><h1>InboxToOdoo</h1><p>Supplier invoice and complaint automation for Odoo. Reads the e-mail, checks it against Odoo with fixed rules, prepares the booking and waits for one click.</p></div>`;
+  } else if (kind === 'end') {
+    root.innerHTML = `<div class="card"><h1>Rules decide. People approve.</h1><p>The AI only reads and writes. Runs on one machine with Odoo 18 Community and n8n, with a local or cloud AI of your choice.</p><p class="small">Demo company and data are fictional. Project by Sam Zeidi, Köln.</p></div>`;
+  } else {
+    // one frame per note: the screenshot as large as fits the width, moved so that note is in view
+    const s = steps[+q.get('s')], k = +(q.get('n') || 0), n0 = s.notes[k];
+    const boxW = 1680, boxH = 900;
+    const scale = Math.min(boxW / s.w, 1.25);
+    const W = s.w * scale, H = s.h * scale, viewH = Math.min(H, boxH);
+    const off = H > boxH ? Math.min(0, Math.max(boxH - H, boxH / 2 - (n0.r[1] + n0.r[3] / 2) * scale)) : 0;
+    // only the note on screen is cut out of a light veil (one or more parts), like the walkthrough page; ?clean shows the plain screen
+    const parts = (n0.parts || [n0.r]).map(r => [r[0] - 6, r[1] - 6, r[2] + 12, r[3] + 12]);
+    const holes = parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="black"/>`).join('');
+    root.innerHTML = `<div class="step"><div class="shotbox" style="${q.has('nocap') ? `top:${(1080 - viewH) / 2}px;` : ''}width:${W}px;height:${viewH}px;overflow:hidden"><div style="position:relative;width:${W}px;height:${H}px;transform:translateY(${off}px)"><img src="${s.img}" style="width:${W}px;height:${H}px">
+      <svg viewBox="0 0 ${s.w} ${s.h}" style="position:absolute;inset:0;width:100%;height:100%"><defs><mask id="m"><rect width="${s.w}" height="${s.h}" fill="white"/>${holes}</mask></defs>
+      ${q.has('clean') ? '' : `<rect width="${s.w}" height="${s.h}" fill="#1d1c1a" fill-opacity=".14" mask="url(#m)"/>${parts.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="none" stroke="#1d1c1a" stroke-width="4" vector-effect="non-scaling-stroke"/>`).join('')}`}</svg></div></div>
+      ${q.has('nocap') ? '' : `<div class="cap"><b>${s.title}</b><span>${n0.t}</span></div>`}</div>`;
+  }
+  document.title = 'ready';
+});
+</script></body></html>

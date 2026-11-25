@@ -1,0 +1,693 @@
+[
+ {
+  "title": "Invoices arrive in the mailbox",
+  "intro": "Suppliers send invoices to the invoice mailbox: PDFs, e-invoices and one scanned paper invoice. Here it is a local test mailbox; in a company it is their normal Outlook or Gmail.",
+  "img": "assets/tut-1-inbox.png",
+  "w": 1025,
+  "h": 693,
+  "notes": [
+   {
+    "t": "Every new mail is picked up",
+    "d": "A small workflow checks the mailbox every minute and hands each attachment to the invoice check.",
+    "r": [
+     312,
+     10,
+     718,
+     672
+    ]
+   },
+   {
+    "t": "Two invoices arrive twice, on purpose",
+    "d": "The e-invoice RE-2026-1219 is sent again, and RE-2026-1187 comes back as a copy further down. One of each pair should be stopped as a duplicate; step 2 shows what this run did.",
+    "r": [
+     0,
+     8,
+     1024,
+     282
+    ],
+    "parts": [
+     [
+      0,
+      8,
+      1024,
+      56
+     ],
+     [
+      0,
+      234,
+      1024,
+      56
+     ]
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-1-inbox-m.png",
+   "w": 390,
+   "h": 1041,
+   "notes": [
+    {
+     "r": [
+      4,
+      14,
+      378,
+      1012
+     ]
+    },
+    {
+     "r": [
+      -2,
+      8,
+      390,
+      427
+     ],
+     "parts": [
+      [
+       -2,
+       8,
+       390,
+       85
+      ],
+      [
+       -2,
+       350,
+       390,
+       85
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "Accounts gets one mail per invoice",
+  "intro": "The subject already says the verdict, the supplier, the invoice number and the amount: “Buchbar” (ready to book), “Abweichung” (difference) or “Gestoppt” (stopped).",
+  "img": "assets/tut-2-approvals.png",
+  "w": 1025,
+  "h": 693,
+  "notes": [
+   {
+    "t": "Sorted at a glance",
+    "d": "Twelve invoice mails, three verdicts. Only the differences and the stops need a person to read further. This run checked the invoices in parallel, so three verdicts differ from the test table: the copy of RE-2026-1187 got Buchbar and the original Gestoppt, and LW-50288 found two open orders (see Limits).",
+    "r": [
+     459,
+     21,
+     69,
+     631
+    ],
+    "parts": [
+     [
+      459,
+      21,
+      49,
+      11
+     ],
+     [
+      459,
+      77,
+      44,
+      11
+     ],
+     [
+      459,
+      134,
+      44,
+      11
+     ],
+     [
+      459,
+      190,
+      69,
+      11
+     ],
+     [
+      459,
+      246,
+      69,
+      11
+     ],
+     [
+      459,
+      303,
+      69,
+      11
+     ],
+     [
+      459,
+      359,
+      49,
+      11
+     ],
+     [
+      459,
+      416,
+      69,
+      11
+     ],
+     [
+      459,
+      472,
+      44,
+      11
+     ],
+     [
+      459,
+      528,
+      69,
+      11
+     ],
+     [
+      459,
+      585,
+      49,
+      11
+     ],
+     [
+      459,
+      641,
+      49,
+      11
+     ]
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-2-approvals-m.png",
+   "w": 390,
+   "h": 1041,
+   "notes": [
+    {
+     "r": [
+      154,
+      50,
+      69,
+      950
+     ],
+     "parts": [
+      [
+       154,
+       50,
+       49,
+       11
+      ],
+      [
+       154,
+       135,
+       44,
+       11
+      ],
+      [
+       154,
+       221,
+       44,
+       11
+      ],
+      [
+       154,
+       306,
+       69,
+       11
+      ],
+      [
+       154,
+       392,
+       69,
+       11
+      ],
+      [
+       154,
+       477,
+       69,
+       11
+      ],
+      [
+       154,
+       562,
+       49,
+       11
+      ],
+      [
+       154,
+       648,
+       69,
+       11
+      ],
+      [
+       154,
+       733,
+       44,
+       11
+      ],
+      [
+       154,
+       818,
+       69,
+       11
+      ],
+      [
+       154,
+       904,
+       49,
+       11
+      ],
+      [
+       154,
+       989,
+       49,
+       11
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "An invoice with a price difference",
+  "intro": "This supplier charged more than agreed in the purchase order.",
+  "img": "assets/tut-3-invoice.png",
+  "w": 760,
+  "h": 1530,
+  "notes": [
+   {
+    "t": "The verdict and the reason",
+    "d": "One price is 7.2 % above the order. The tolerance is 2 %, so the invoice is flagged.",
+    "r": [
+     73,
+     80,
+     614,
+     92
+    ]
+   },
+   {
+    "t": "Order, receipt and invoice side by side",
+    "d": "Ordered, delivered, already billed and billed now, for every line. Only the cell that breaks a rule is marked.",
+    "r": [
+     73,
+     325,
+     614,
+     160
+    ]
+   },
+   {
+    "t": "The expected next step is the filled button",
+    "d": "Send the drafted query to the supplier. Booking anyway and discarding are there too. Nothing happens before a click.",
+    "r": [
+     73,
+     1324,
+     528,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-3-invoice-m.png",
+   "w": 390,
+   "h": 2064,
+   "notes": [
+    {
+     "r": [
+      21,
+      62,
+      348,
+      138
+     ]
+    },
+    {
+     "r": [
+      21,
+      419,
+      348,
+      193
+     ]
+    },
+    {
+     "r": [
+      21,
+      1742,
+      348,
+      148
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The query to the supplier is already written",
+  "intro": "For a difference, the AI drafts a short, factual e-mail to the supplier: the numbers, what is wrong and what is needed.",
+  "img": "assets/tut-4-query.png",
+  "w": 760,
+  "h": 1530,
+  "notes": [
+   {
+    "t": "Drafted, not sent",
+    "d": "It goes out only after the click on “Rückfrage an Lieferanten senden”. The invoice stays a draft in Odoo until the correction arrives.",
+    "r": [
+     73,
+     581,
+     614,
+     429
+    ]
+   },
+   {
+    "t": "How it was decided",
+    "d": "Tolerance, fixed checks, how the document was read and which AI was used. The AI runs locally here, so no data leaves the machine.",
+    "r": [
+     73,
+     1075,
+     614,
+     221
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-3-invoice-m.png",
+   "w": 390,
+   "h": 2064,
+   "notes": [
+    {
+     "r": [
+      21,
+      729,
+      348,
+      546
+     ]
+    },
+    {
+     "r": [
+      21,
+      1340,
+      348,
+      374
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "A changed bank account stops everything",
+  "intro": "The invoice asks for payment to a new bank account. That is one of the most common invoice frauds, so this invoice is not even drafted.",
+  "img": "assets/tut-5-fraud.png",
+  "w": 760,
+  "h": 1123,
+  "notes": [
+   {
+    "t": "Compared with Odoo, not with the e-mail",
+    "d": "The account on the invoice is shown above the one stored in Odoo, in groups of four. The advice is to call a number already known, never to reply.",
+    "r": [
+     73,
+     149,
+     614,
+     240
+    ]
+   },
+   {
+    "t": "No booking button",
+    "d": "Only “Als erledigt markieren”. A stopped invoice cannot be booked from here by mistake.",
+    "r": [
+     73,
+     956,
+     200,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-5-fraud-m.png",
+   "w": 390,
+   "h": 1411,
+   "notes": [
+    {
+     "r": [
+      21,
+      131,
+      348,
+      338
+     ]
+    },
+    {
+     "r": [
+      21,
+      1250,
+      348,
+      44
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "E-invoices are read by Odoo itself",
+  "intro": "XRechnung and ZUGFeRD invoices carry their data inside. Odoo Community reads them, so no AI is needed; the automation adds the checks around it.",
+  "img": "assets/tut-6-einvoice.png",
+  "w": 760,
+  "h": 922,
+  "notes": [
+   {
+    "t": "Everything matches",
+    "d": "Order, goods receipt and invoice agree; sums, VAT ID and IBAN were checked. Booking is the filled button.",
+    "r": [
+     73,
+     149,
+     614,
+     46
+    ]
+   },
+   {
+    "t": "How it was read",
+    "d": "“E-Rechnung (XRechnung UBL), von Odoo selbst eingelesen, ohne KI”. PDFs are read by the AI, paper scans by OCR first.",
+    "r": [
+     73,
+     628,
+     614,
+     40
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-6-einvoice-m.png",
+   "w": 390,
+   "h": 1143,
+   "notes": [
+    {
+     "r": [
+      21,
+      131,
+      348,
+      46
+     ]
+    },
+    {
+     "r": [
+      21,
+      759,
+      348,
+      83
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The draft bill in Odoo",
+  "intro": "The invoice from step 3 (LW-50231) as a draft vendor bill in Odoo; it stays a draft while the query to the supplier is open. Odoo's interface runs in English here; the company data is German.",
+  "img": "assets/tut-7-odoo.png",
+  "w": 1120,
+  "h": 880,
+  "notes": [
+   {
+    "t": "Linked to the purchase order",
+    "d": "The bill points to order P00002, so Odoo's own reports see what was ordered, received and billed.",
+    "r": [
+     506,
+     54,
+     108,
+     33
+    ]
+   },
+   {
+    "t": "The lines as invoiced",
+    "d": "The 20.90 price stays as the supplier billed it. The bill stays a draft while the query to the supplier is open.",
+    "r": [
+     41,
+     559,
+     1038,
+     194
+    ]
+   },
+   {
+    "t": "Written by the automation",
+    "d": "A note on every bill says which file and which mail it came from.",
+    "r": [
+     41,
+     758,
+     681,
+     46
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-7-odoo-m.png",
+   "w": 390,
+   "h": 1560,
+   "notes": [
+    null,
+    {
+     "r": [
+      16,
+      969,
+      358,
+      321
+     ]
+    },
+    {
+     "r": [
+      16,
+      1441,
+      358,
+      66
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "A complaint, decided by rule",
+  "intro": "A customer writes that the display was cracked on arrival and wants her money back.",
+  "img": "assets/tut-8-complaint.png",
+  "w": 760,
+  "h": 1811,
+  "notes": [
+   {
+    "t": "The facts from Odoo",
+    "d": "Order, product, delivery date, warranty, amount with VAT. The AI only read the e-mail; these values come from Odoo.",
+    "r": [
+     73,
+     210,
+     614,
+     320
+    ]
+   },
+   {
+    "t": "Her own words",
+    "d": "The original e-mail is shown, so the person who approves can check what the AI understood.",
+    "r": [
+     73,
+     626,
+     614,
+     251
+    ]
+   },
+   {
+    "t": "The reply, ready to send",
+    "d": "A credit note of 141.61 € is prepared in Odoo and the reply is written in the company's tone.",
+    "r": [
+     73,
+     936,
+     614,
+     476
+    ]
+   },
+   {
+    "t": "Approve or reject",
+    "d": "Approve books the credit note and sends the reply. Reject cancels the draft and sends nothing.",
+    "r": [
+     73,
+     1625,
+     319,
+     44
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-8-complaint-m.png",
+   "w": 390,
+   "h": 2353,
+   "notes": [
+    {
+     "r": [
+      21,
+      238,
+      348,
+      497
+     ]
+    },
+    {
+     "r": [
+      21,
+      831,
+      348,
+      316
+     ]
+    },
+    {
+     "r": [
+      21,
+      1227,
+      348,
+      592
+     ]
+    },
+    {
+     "r": [
+      21,
+      2119,
+      348,
+      98
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "title": "The company sets the rules",
+  "intro": "A plain form, no code: how replies are written, how complaints are decided and which AI is used. Every field shows the value in use; a choice marked “(aktuell)” keeps it.",
+  "img": "assets/tut-9-settings.png",
+  "w": 900,
+  "h": 2679,
+  "notes": [
+   {
+    "t": "How replies sound",
+    "d": "Language, Sie or du, tone, length, when to apologise, closing and signature.",
+    "r": [
+     175,
+     290,
+     550,
+     871
+    ]
+   },
+   {
+    "t": "Which AI",
+    "d": "A local model, a cloud provider, or the AI key already set up in Odoo. The form says where the data goes. Keys stay in a local file, never in this form.",
+    "r": [
+     175,
+     1980,
+     550,
+     289
+    ]
+   }
+  ],
+  "m": {
+   "img": "assets/tut-9-settings-m.png",
+   "w": 390,
+   "h": 2790,
+   "notes": [
+    {
+     "r": [
+      26,
+      264,
+      338,
+      871
+     ]
+    },
+    {
+     "r": [
+      26,
+      2059,
+      338,
+      306
+     ]
+    }
+   ]
+  }
+ }
+]

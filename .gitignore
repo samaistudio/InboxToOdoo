@@ -1,0 +1,8 @@
+.env.local
+data/
+node_modules/
+.DS_Store
+mock-llm/requests/
+install.log
+reload.log
+__pycache__/

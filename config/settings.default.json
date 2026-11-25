@@ -1,0 +1,32 @@
+{
+ "language": "auto",
+ "formality": "Sie",
+ "tone": "freundlich",
+ "length": "normal",
+ "apology": "when_our_fault",
+ "closing_de": "Mit freundlichen Grüßen",
+ "closing_en": "Best regards,",
+ "signature": "Lena Hoffmann\nKundenservice\nRheinmark Handels GmbH\n0221 4710 123",
+ "custom_rules": "",
+ "warranty_months_b2c": 24,
+ "warranty_months_b2b": 12,
+ "default_remedy": "replacement",
+ "approval_email": "reklamation-team@rheinmark-handel.example",
+ "service_email": "service@rheinmark-handel.example",
+ "llm_provider": "mock",
+ "llm_model": "",
+ "llm_url": "",
+ "azure_api_version": "2024-10-21",
+ "odoo_ai_params": [
+  "ai.openai_key",
+  "ai.google_key",
+  "ai.openai.api_key",
+  "ai.google.api_key"
+ ],
+ "odoo_ai_prefer": "openai",
+ "odoo_ai_model": "",
+ "inv_price_tolerance_pct": 2,
+ "inv_approval_email": "buchhaltung@rheinmark-handel.example",
+ "inv_mailbox": "rechnungen@rheinmark-handel.example",
+ "inv_signature": "Jana Wolff\nKreditorenbuchhaltung\nRheinmark Handels GmbH\n0221 4710 124"
+}

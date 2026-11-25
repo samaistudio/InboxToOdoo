@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 430" font-family="Arial, Helvetica, sans-serif" role="img" aria-label="How InboxToOdoo works">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#8a8d93"/></marker>
+    <style>
+      .box{fill:#1f2125;stroke:#3a3d43;stroke-width:1}
+      .hum{fill:#2a2c31;stroke:#d6d6d6;stroke-width:1}
+      .t{fill:#e4e4e4;font-size:14px}
+      .s{fill:#8a8d93;font-size:12px}
+      .h{fill:#8a8d93;font-size:12px;letter-spacing:.12em}
+      .l{stroke:#8a8d93;stroke-width:1.2;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
+  <text class="h" x="20" y="34">COMPLAINTS</text>
+  <g transform="translate(20,50)">
+    <rect class="box" width="150" height="70"/><text class="t" x="14" y="30">Customer e-mail</text><text class="s" x="14" y="50">service mailbox</text>
+    <path class="l" d="M150 35 H185"/>
+    <rect class="box" x="190" width="150" height="70"/><text class="t" x="204" y="30">AI reads it</text><text class="s" x="204" y="50">order, product, problem</text>
+    <path class="l" d="M340 35 H375"/>
+    <rect class="box" x="380" width="160" height="70"/><text class="t" x="394" y="30">Rules decide</text><text class="s" x="394" y="50">warranty, B2B or B2C</text>
+    <path class="l" d="M540 35 H575"/>
+    <rect class="box" x="580" width="160" height="70"/><text class="t" x="594" y="30">Draft in Odoo</text><text class="s" x="594" y="50">replacement or credit</text>
+    <path class="l" d="M740 35 H775"/>
+    <rect class="box" x="780" width="140" height="70"/><text class="t" x="794" y="30">Reply drafted</text><text class="s" x="794" y="50">style-checked</text>
+    <path class="l" d="M920 35 H955"/>
+    <rect class="hum" x="960" width="120" height="70"/><text class="t" x="974" y="30">Person clicks</text><text class="s" x="974" y="50">book + send</text>
+  </g>
+  <text class="h" x="20" y="194">SUPPLIER INVOICES</text>
+  <g transform="translate(20,210)">
+    <rect class="box" width="150" height="70"/><text class="t" x="14" y="30">Invoice e-mail</text><text class="s" x="14" y="50">PDF, XRechnung, scan</text>
+    <path class="l" d="M150 35 H185"/>
+    <rect class="box" x="190" width="150" height="70"/><text class="t" x="204" y="26">Read</text><text class="s" x="204" y="44">e-invoice: Odoo itself</text><text class="s" x="204" y="60">PDF/scan: OCR + AI</text>
+    <path class="l" d="M340 35 H375"/>
+    <rect class="box" x="380" width="160" height="70"/><text class="t" x="394" y="26">Fixed checks</text><text class="s" x="394" y="44">sums, VAT ID, IBAN,</text><text class="s" x="394" y="60">duplicates, new bank</text>
+    <path class="l" d="M540 35 H575"/>
+    <rect class="box" x="580" width="160" height="70"/><text class="t" x="594" y="26">3-way match</text><text class="s" x="594" y="44">ordered, received,</text><text class="s" x="594" y="60">invoiced, price</text>
+    <path class="l" d="M740 35 H775"/>
+    <rect class="box" x="780" width="140" height="70"/><text class="t" x="794" y="30">Draft bill</text><text class="s" x="794" y="50">+ supplier query</text>
+    <path class="l" d="M920 35 H955"/>
+    <rect class="hum" x="960" width="120" height="70"/><text class="t" x="974" y="30">Person clicks</text><text class="s" x="974" y="50">book, ask, discard</text>
+  </g>
+  <g transform="translate(20,340)">
+    <line x1="0" y1="0" x2="1060" y2="0" stroke="#2c2f34"/>
+    <text class="s" x="0" y="30">Runs on one machine: n8n (workflows), Odoo 18 Community, a local mailbox, OCR. The AI is your choice: a local model, a cloud key, or the one already set up in Odoo.</text>
+    <text class="s" x="0" y="52">The AI only reads and writes. Every decision comes from fixed rules, and nothing is booked or sent before a person approves.</text>
+  </g>
+</svg>
